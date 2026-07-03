@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/main
+backend/server
+backend/migrate
+
+# Environment files (NEVER commit these — they contain real secrets!)
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.env
+# Keep example/template files tracked (safe placeholders, no secrets)
+!**/.env.example
+!**/.env.*.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test
+coverage/
+*.cover
+*.out
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+
+# Internal working documents (never publish)
+PLAN.md
+
+# Runtime data
+backend/uploads/
+backend/tmp/

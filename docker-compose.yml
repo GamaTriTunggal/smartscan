@@ -1,0 +1,122 @@
+# Docker Compose reads .env automatically from the same directory
+# All variables defined in .env can be used with ${VAR} syntax
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: smartscan_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartscan_network
+
+  redis:
+    image: redis:8-alpine
+    container_name: smartscan_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smartscan_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartscan_backend
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_NAME=${APP_NAME}
+      - APP_ENV=${APP_ENV}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - INACTIVITY_TIMEOUT_MINUTES=${INACTIVITY_TIMEOUT_MINUTES:-30}
+      - SERVER_PORT=${SERVER_PORT}
+      - FRONTEND_URL=${FRONTEND_URL}
+      # Optional server-side reverse geocoding (leave empty to disable)
+      - BIGDATACLOUD_API_KEY=${BIGDATACLOUD_API_KEY:-}
+      # Sentry/GlitchTip
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DEBUG=${SENTRY_DEBUG:-false}
+      - GLITCHTIP_DOMAIN=${GLITCHTIP_DOMAIN:-}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_FORMAT=${LOG_FORMAT}
+      # Telegram Notifications
+      # WhatsApp Provider Selection (meta, zenziva, stub)
+      # Zenziva WA OTP (fallback)
+      # Meta WhatsApp Cloud API
+      # Geocoding (BigDataCloud)
+      # Cloudflare R2 Storage
+      - R2_ENABLED=${R2_ENABLED:-false}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:-}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+      - ./frontend/public:/app/frontend/public
+      - /app/tmp
+    networks:
+      - smartscan_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smartscan_frontend
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_APP_NAME=${APP_NAME}
+      - VITE_APP_TAGLINE=${APP_TAGLINE}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - smartscan_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  frontend_node_modules:
+
+networks:
+  smartscan_network:
+    driver: bridge

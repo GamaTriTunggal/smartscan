@@ -1,0 +1,35 @@
+# Version control
+.git
+
+# IDE
+.idea/
+.vscode/
+
+# Dependencies (reinstalled via npm ci)
+node_modules/
+
+# Build output (regenerated in Docker)
+dist/
+
+# Test artifacts
+test-results/
+playwright-report/
+e2e/
+tests/
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev config
+Dockerfile
+Dockerfile.prod

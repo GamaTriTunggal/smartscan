@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Monochrome palette — pure neutral (hue 0, 0% saturation), no blue undertone.
+     Only --destructive stays chromatic (semantic red). Verdict green/amber and
+     other semantic colors are applied per-component, not via these tokens. */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 9%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 83.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* ── Driver.js Tour Overrides ── */
+.driver-overlay {
+  z-index: 10000 !important;
+}
+
+.driver-active-element {
+  z-index: 10001 !important;
+  position: relative !important;
+}
+
+.smartscan-tour-popover {
+  z-index: 10002 !important;
+  max-width: 340px;
+}
+
+.smartscan-tour-modal-popover {
+  z-index: 10002 !important;
+}
+
+.smartscan-tour-step-counter {
+  font-size: 11px;
+  color: #18181b;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.smartscan-tour-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.smartscan-tour-buttons {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.smartscan-tour-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background: #18181b;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.smartscan-tour-btn:hover {
+  background: #000000;
+}
+
+.dark .smartscan-tour-step-counter {
+  color: #e4e4e7;
+}
+
+.dark .smartscan-tour-hint {
+  color: #9ca3af;
+}
+
+/* ── Dark Mode: Driver.js Popover ── */
+/*
+ * Driver.js ships a vendor stylesheet (driver.js/dist/driver.css) that uses
+ * hardcoded light-mode colors (white background, dark text, white arrow).
+ * These rules add dark-mode counterparts using the design system palette:
+ *   bg: gray-800 (#1f2937), text: white, secondary: gray-400 (#9ca3af).
+ *
+ * Specificity is (0,2,0) so no !important is needed — wins over vendor's
+ * (0,1,0) single-class selectors.
+ *
+ * Light mode is intentionally left untouched: without a `.dark` ancestor,
+ * none of these rules match, so the vendor defaults still apply.
+ */
+.dark .driver-popover {
+  background-color: #1f2937;
+  color: #f3f4f6;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+
+.dark .driver-popover-title {
+  color: #ffffff;
+}
+
+.dark .driver-popover-description {
+  color: #d1d5db;
+}
+
+.dark .driver-popover-progress-text {
+  color: #9ca3af;
+}
+
+.dark .driver-popover-close-btn {
+  color: #6b7280;
+}
+
+.dark .driver-popover-close-btn:hover,
+.dark .driver-popover-close-btn:focus {
+  color: #f3f4f6;
+}
+
+/*
+ * Arrow color must match popover background. driver.js uses a single
+ * `border: 5px solid #fff` and then sets three sides to transparent per
+ * direction. Override all four direction variants so every arrow side
+ * matches the dark popover background.
+ */
+.dark .driver-popover-arrow-side-top {
+  border-top-color: #1f2937;
+}
+.dark .driver-popover-arrow-side-right {
+  border-right-color: #1f2937;
+}
+.dark .driver-popover-arrow-side-bottom {
+  border-bottom-color: #1f2937;
+}
+.dark .driver-popover-arrow-side-left {
+  border-left-color: #1f2937;
+}
+
+/*
+ * Tour action button (Next / Finish). Dark mode inverts to a light button.
+ */
+.dark .smartscan-tour-btn {
+  background: #fafafa;
+  color: #18181b;
+}
+
+.dark .smartscan-tour-btn:hover {
+  background: #e4e4e7;
+}

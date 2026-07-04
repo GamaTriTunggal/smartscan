@@ -251,9 +251,16 @@ func (q *RedisQRGenerationQueue) RefreshTenantLock(ctx context.Context, tenantID
 		end
 	`
 	ttlSeconds := int(q.tenantLockTTL.Seconds())
-	_, err := q.client.Eval(ctx, script, []string{key}, workerID, ttlSeconds).Result()
+	res, err := q.client.Eval(ctx, script, []string{key}, workerID, ttlSeconds).Result()
 	if err != nil {
 		return fmt.Errorf("failed to refresh tenant lock: %w", err)
+	}
+	// The script returns 0 (not an error) when the key is missing or owned by a
+	// different worker — i.e. the lock expired or was stolen. Surface that as an
+	// error so the worker's refresh goroutine can abort the job (see processJob's
+	// lockLostCh handling) instead of continuing to generate under a lost lock.
+	if n, ok := res.(int64); ok && n == 0 {
+		return fmt.Errorf("tenant lock for %s no longer held by worker %s", tenantID, workerID)
 	}
 	return nil
 }

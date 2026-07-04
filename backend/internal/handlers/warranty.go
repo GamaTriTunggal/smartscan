@@ -288,12 +288,17 @@ func (h *WarrantyHandler) RegisterWarranty(c *gin.Context) {
 	}
 	warrantyExpiry := purchaseDate.AddDate(0, warrantyMonths, 0)
 
-	// Prepare geolocation
-	geolocationData, _ := json.Marshal(gin.H{
-		"latitude":  req.Latitude,
-		"longitude": req.Longitude,
-	})
-	geolocation := datatypes.JSON(geolocationData)
+	// Prepare geolocation. Only attach it when GPS coords are present, and use the
+	// {"lat","lng"} shape every other writer/reader uses (velocity.go, dashboard.go,
+	// validation.go). A nil datatypes.JSON is stored as SQL NULL.
+	var geolocation datatypes.JSON
+	if req.Latitude != nil && req.Longitude != nil {
+		geolocationData, _ := json.Marshal(map[string]float64{
+			"lat": *req.Latitude,
+			"lng": *req.Longitude,
+		})
+		geolocation = datatypes.JSON(geolocationData)
+	}
 
 	// Prepare activation data (includes custom fields)
 	activationData := make(map[string]interface{})
@@ -333,12 +338,20 @@ func (h *WarrantyHandler) RegisterWarranty(c *gin.Context) {
 		return
 	}
 
-	// Record interaction
-	interactionGeolocationData, _ := json.Marshal(gin.H{
-		"latitude":  req.Latitude,
-		"longitude": req.Longitude,
-	})
-	interactionGeolocation := datatypes.JSON(interactionGeolocationData)
+	// Record interaction. Only attach geolocation when GPS coords are present, using
+	// the {"lat","lng"} shape. The impossible-travel velocity check (velocity.go) and
+	// the heatmap (dashboard.go) parse ONLY that shape, and the velocity query keys
+	// off `geolocation IS NOT NULL` — writing a coordinate-less non-null blob here
+	// would break those readers AND mask the anti-counterfeit check by shadowing the
+	// previous geolocated scan with a 0,0 position.
+	var interactionGeolocation datatypes.JSON
+	if req.Latitude != nil && req.Longitude != nil {
+		interactionGeolocationData, _ := json.Marshal(map[string]float64{
+			"lat": *req.Latitude,
+			"lng": *req.Longitude,
+		})
+		interactionGeolocation = datatypes.JSON(interactionGeolocationData)
+	}
 
 	interaction := models.Interaction{
 		QRCodeID:               &qrCode.ID,
@@ -351,6 +364,12 @@ func (h *WarrantyHandler) RegisterWarranty(c *gin.Context) {
 		Geolocation:            interactionGeolocation,
 	}
 	h.DB.Create(&interaction)
+
+	// Reverse-geocode enrichment (adds country/province/city so warranty activations
+	// appear in the heatmap's geographic aggregations, mirroring UpdateScanLocation).
+	if h.Cfg.Geocoding.BigDataCloudAPIKey != "" && req.Latitude != nil && req.Longitude != nil {
+		go enrichGeolocation(h.DB, h.Cfg.Geocoding.BigDataCloudAPIKey, interaction.ID, *req.Latitude, *req.Longitude)
+	}
 
 	// Non-blocking geofence check (records violation for awareness, does not block registration)
 	if req.Latitude != nil && req.Longitude != nil && qrCode.Batch != nil {

@@ -14,6 +14,10 @@ type JWTClaims struct {
 	UserType string     `json:"user_type"`
 	Role     string     `json:"role"`
 	TenantID *uuid.UUID `json:"tenant_id,omitempty"`
+	// MustChangePassword mirrors users.must_change_password at mint time so the
+	// forced-password-change requirement can be enforced server-side (AuthMiddleware)
+	// rather than only by the frontend router guard, which the API can bypass.
+	MustChangePassword bool `json:"must_change_password,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -29,7 +33,7 @@ const (
 	IssuerRefreshToken = "smartscan-refresh"
 )
 
-func GenerateTokenPair(secret string, userID uuid.UUID, email, userType, role string, tenantID *uuid.UUID, accessHours, refreshHours int) (*TokenPair, error) {
+func GenerateTokenPair(secret string, userID uuid.UUID, email, userType, role string, tenantID *uuid.UUID, accessHours, refreshHours int, mustChangePassword bool) (*TokenPair, error) {
 	accessDuration := time.Duration(accessHours) * time.Hour
 	accessExpiry := time.Now().UTC().Add(accessDuration)
 	refreshExpiry := time.Now().UTC().Add(time.Duration(refreshHours) * time.Hour)
@@ -41,6 +45,7 @@ func GenerateTokenPair(secret string, userID uuid.UUID, email, userType, role st
 		UserType:  userType,
 		Role:      role,
 		TenantID: tenantID,
+		MustChangePassword: mustChangePassword,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(accessExpiry),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
@@ -62,6 +67,7 @@ func GenerateTokenPair(secret string, userID uuid.UUID, email, userType, role st
 		UserType:  userType,
 		Role:      role,
 		TenantID: tenantID,
+		MustChangePassword: mustChangePassword,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(refreshExpiry),
 			IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),

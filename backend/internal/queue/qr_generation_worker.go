@@ -185,8 +185,13 @@ func (w *QRGenerationWorker) processNext(ctx context.Context) error {
 		atomic.AddInt64(&w.errorCount, 1)
 		cb.RecordFailure()
 
+		// Increment BEFORE the retry decision. CanRetry() is a post-increment
+		// check (RetryCount < MaxRetries) and Nack re-runs it internally; branching
+		// on the pre-increment value made the exhaustion path below unreachable, so
+		// the last attempt went to the DLQ without ever marking the batch failed
+		// (leaving it stuck in "processing" for the scanner to re-enqueue forever).
+		job.IncrementRetry(err)
 		if job.CanRetry() {
-			job.IncrementRetry(err)
 			log.Printf("[QRGenWorker %s] Job %s (batch %s) failed (attempt %d/%d): %v, requeuing",
 				w.id, job.ID, job.BatchID, job.RetryCount, job.MaxRetries, err)
 			return w.queue.Nack(ctx, job, true)
@@ -582,8 +587,10 @@ func (w *QRGenerationWorker) claimStaleJobs(ctx context.Context) {
 			log.Printf("[QRGenWorker %s] Error processing claimed job %s: %v",
 				w.id, job.ID, processErr)
 
+			// Increment before the retry decision (see processNext for why): otherwise
+			// the exhaustion branch never runs and the batch is never marked failed.
+			job.IncrementRetry(processErr)
 			if job.CanRetry() {
-				job.IncrementRetry(processErr)
 				if nackErr := w.queue.Nack(ctx, job, true); nackErr != nil {
 					log.Printf("[QRGenWorker %s] Failed to Nack claimed job: %v", w.id, nackErr)
 				}

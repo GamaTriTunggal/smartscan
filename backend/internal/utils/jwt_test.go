@@ -13,7 +13,7 @@ func TestGenerateTokenPair_Success(t *testing.T) {
 	role := "super_admin"
 	secret := "test-secret-key"
 
-	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168)
+	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168, false)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestGenerateTokenPair_WithTenantID(t *testing.T) {
 	role := "admin"
 	secret := "test-secret-key"
 
-	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, &tenantID, 24, 168)
+	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, &tenantID, 24, 168, false)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestValidateToken_Success(t *testing.T) {
 	role := "super_admin"
 	secret := "test-secret-key"
 
-	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168)
+	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168, false)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestValidateToken_WrongSecret(t *testing.T) {
 	secret := "correct-secret"
 	wrongSecret := "wrong-secret"
 
-	tokenPair, err := GenerateTokenPair(secret, userID, "test@example.com", "tenant_staff", "admin", nil, 24, 168)
+	tokenPair, err := GenerateTokenPair(secret, userID, "test@example.com", "tenant_staff", "admin", nil, 24, 168, false)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestValidateToken_ExpiredToken(t *testing.T) {
 	secret := "test-secret-key"
 
 	// Generate token with negative expiration (already expired)
-	tokenPair, err := GenerateTokenPair(secret, userID, "test@example.com", "tenant_staff", "admin", nil, -1, -1)
+	tokenPair, err := GenerateTokenPair(secret, userID, "test@example.com", "tenant_staff", "admin", nil, -1, -1, false)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}

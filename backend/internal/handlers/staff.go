@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -226,12 +227,23 @@ func (h *StaffHandler) UpdateTenantStaff(c *gin.Context) {
 		updates["role"] = req.Role
 	}
 
+	// Detect a role change BEFORE Updates mutates staff.Role.
+	roleChanged := req.Role != "" && req.Role != string(staff.Role)
+
 	if len(updates) > 0 {
 		if err := h.DB.Model(&staff).Updates(updates).Error; err != nil {
 			sentry.CaptureHandlerError(c, err, "staff.UpdateTenantStaff", sentry.ErrorTypeDatabase, sentry.SeverityMedium)
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to update staff", err)
 			return
 		}
+	}
+
+	// A role change must take effect immediately. The role guards authorize on JWT
+	// claims and RefreshToken re-mints from the presented token's (now stale) role,
+	// so without evicting sessions the old privilege would persist for the whole
+	// refresh window. Force a re-login so the next token carries the new role.
+	if roleChanged {
+		_ = utils.NewTokenBlacklist().RevokeUserTokens(staff.UserID.String(), time.Duration(h.Cfg.JWT.RefreshHours)*time.Hour)
 	}
 
 	// Re-fetch for response with preloads
@@ -273,6 +285,11 @@ func (h *StaffHandler) DeleteTenantStaff(c *gin.Context) {
 	// Soft delete staff and user
 	h.DB.Delete(&staff)
 	h.DB.Delete(&models.User{}, "id = ?", staff.UserID)
+
+	// Evict the deleted user's sessions. AuthMiddleware authorizes purely on JWT
+	// claims and never re-checks the DB, so without this the access token keeps
+	// working until it expires (default 24h). Fail-open if Redis is unavailable.
+	_ = utils.NewTokenBlacklist().RevokeUserTokens(staff.UserID.String(), time.Duration(h.Cfg.JWT.RefreshHours)*time.Hour)
 
 	// Audit log
 	audit.LogFromContext(c, h.DB, models.ActionTypeDelete, "tenant_staff", &staff.ID, map[string]interface{}{"full_name": staff.FullName, "role": staff.Role}, nil)

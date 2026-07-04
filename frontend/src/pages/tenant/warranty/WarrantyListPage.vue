@@ -158,7 +158,8 @@ const exportToCSV = async (tz) => {
       params.set('tz', tz)
     }
 
-    const url = `/api/v1/tenant/warranties/export?${params.toString()}`
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+    const url = `${apiBase}/tenant/warranties/export?${params.toString()}`
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders(),

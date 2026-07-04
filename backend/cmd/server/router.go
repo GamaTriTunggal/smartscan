@@ -206,10 +206,13 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				tenant.GET("/analytics", dashboardHandler.GetAnalytics)
 				tenant.GET("/heatmap", dashboardHandler.GetScanHeatmap)
 
-				// In-app notification center
-				tenant.GET("/notifications", notificationsHandler.List)
-				tenant.POST("/notifications/:id/read", notificationsHandler.MarkRead)
-				tenant.POST("/notifications/read-all", notificationsHandler.MarkAllRead)
+				// In-app notification center (admin only). The feed carries
+				// company-wide security alerts (counterfeit, geofence) whose source
+				// endpoints are admin-gated, and the read state is tenant-wide, so
+				// non-admin staff must not read or clear it.
+				tenant.GET("/notifications", middleware.TenantAdminOnly(), notificationsHandler.List)
+				tenant.POST("/notifications/:id/read", middleware.TenantAdminOnly(), notificationsHandler.MarkRead)
+				tenant.POST("/notifications/read-all", middleware.TenantAdminOnly(), notificationsHandler.MarkAllRead)
 
 				// Outbound webhook integration (admin)
 				tenant.GET("/integrations/webhook", middleware.TenantAdminOnly(), webhookSettingsHandler.Get)

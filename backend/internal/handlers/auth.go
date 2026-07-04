@@ -129,6 +129,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		tenantID,
 		h.Cfg.JWT.ExpirationHours,
 		h.Cfg.JWT.RefreshHours,
+		user.MustChangePassword,
 	)
 	if err != nil {
 		sentry.CaptureHandlerError(c, err, "auth.Login", sentry.ErrorTypeInternal, sentry.SeverityCritical)
@@ -243,6 +244,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		claims.TenantID,
 		h.Cfg.JWT.ExpirationHours,
 		h.Cfg.JWT.RefreshHours,
+		user.MustChangePassword, // re-read from DB so a cleared/set flag propagates on refresh
 	)
 	if err != nil {
 		sentry.CaptureHandlerError(c, err, "auth.RefreshToken", sentry.ErrorTypeInternal, sentry.SeverityCritical)
@@ -286,6 +288,24 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 				blacklist := utils.NewTokenBlacklist()
 				blacklist.RevokeToken(accessToken, claims.ExpiresAt.Time)
 			}
+		}
+	}
+
+	// Also revoke the refresh token. Blacklisting the access token alone is not
+	// enough: the refresh token outlives it (default 168h) and could mint a fresh
+	// access token via /auth/refresh, so the session would survive logout.
+	refreshToken, _ := utils.GetRefreshTokenFromCookie(c)
+	if refreshToken == "" {
+		var body struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if err := c.ShouldBindJSON(&body); err == nil {
+			refreshToken = body.RefreshToken
+		}
+	}
+	if refreshToken != "" {
+		if claims, err := utils.ValidateRefreshToken(refreshToken, h.Cfg.JWT.Secret); err == nil && claims.ExpiresAt != nil {
+			utils.NewTokenBlacklist().RevokeToken(refreshToken, claims.ExpiresAt.Time)
 		}
 	}
 
@@ -478,7 +498,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 	if tokenPair, terr := utils.GenerateTokenPair(
 		h.Cfg.JWT.Secret, user.ID, user.Email, string(user.UserType),
-		c.GetString("role"), tenantID, h.Cfg.JWT.ExpirationHours, h.Cfg.JWT.RefreshHours,
+		c.GetString("role"), tenantID, h.Cfg.JWT.ExpirationHours, h.Cfg.JWT.RefreshHours, false,
 	); terr == nil {
 		utils.SetTokenCookies(c, tokenPair, h.Cfg.JWT.ExpirationHours, h.Cfg.JWT.RefreshHours)
 	}

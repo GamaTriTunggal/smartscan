@@ -304,8 +304,10 @@ func (h *ValidationHandler) ScanRedirect(c *gin.Context) {
 		return
 	}
 
-	// Check if batch has been soft-deleted
-	if qrCode.Batch != nil && qrCode.Batch.DeletedAt != nil {
+	// A missing batch (soft-deleted / orphaned) or an explicitly soft-deleted batch
+	// is treated as "not found". recordDynamicQRScan dereferences qrCode.Batch, so a
+	// nil batch must be caught here rather than panicking downstream.
+	if qrCode.Batch == nil || qrCode.Batch.DeletedAt != nil {
 		c.Redirect(http.StatusFound, fmt.Sprintf("%s/v/%s?error=not_found", frontendURL, code))
 		return
 	}

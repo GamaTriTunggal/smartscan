@@ -149,6 +149,18 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			c.Set("tenant_id", claims.TenantID.String())
 		}
 
+		// Force password change: an account flagged must_change_password (e.g. after
+		// an admin reset) may only reach the change-password endpoint until it
+		// rotates the temporary password. Enforced server-side so the requirement
+		// can't be bypassed by calling the API directly — the frontend router guard
+		// is not a security boundary.
+		if claims.MustChangePassword && !strings.HasSuffix(c.FullPath(), "/auth/change-password") {
+			utils.ErrorResponseWithCode(c, http.StatusForbidden, "PASSWORD_CHANGE_REQUIRED",
+				"You must change your temporary password before continuing")
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }

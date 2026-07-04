@@ -236,8 +236,8 @@ async function handleLogout() {
         </button>
 
         <div class="flex items-center space-x-4">
-          <!-- Notifications -->
-          <NotificationBell />
+          <!-- Notifications (admin-only: the feed carries company-wide security alerts) -->
+          <NotificationBell v-if="authStore.isAdmin" />
 
           <!-- Theme Switcher -->
           <ThemeSwitcher />

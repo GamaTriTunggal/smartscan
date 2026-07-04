@@ -243,9 +243,23 @@ func (h *ScanningHandler) QCScan(c *gin.Context) {
 		return
 	}
 
-	// Find QR code
+	// Find QR code. Parse the scanned value first so a non-UUID code (a batch with a
+	// prefix/suffix, or a Base58 short code) is never compared against the uuid column
+	// qr_uuid — that raises "invalid input syntax for type uuid" and fails the whole
+	// lookup with a spurious 404. Mirrors the public scan/validation handlers.
+	lookup, err := utils.ParseQRCodeParam(input.QRCode)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "QR code not found", nil)
+		return
+	}
 	var qrCode models.QRCode
-	if err := h.DB.Preload("Batch").Where("qr_code = ? OR qr_uuid = ?", input.QRCode, input.QRCode).First(&qrCode).Error; err != nil {
+	qrQuery := h.DB.Preload("Batch")
+	if lookup.LookupByCode {
+		qrQuery = qrQuery.Where("qr_code = ?", lookup.OriginalCode)
+	} else {
+		qrQuery = qrQuery.Where("qr_uuid = ?", lookup.QRUUID)
+	}
+	if err := qrQuery.First(&qrCode).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "QR code not found", nil)
 		return
 	}
@@ -472,9 +486,23 @@ func (h *ScanningHandler) WarehouseScan(c *gin.Context) {
 		return
 	}
 
-	// Find QR code
+	// Find QR code. Parse the scanned value first so a non-UUID code (a batch with a
+	// prefix/suffix, or a Base58 short code) is never compared against the uuid column
+	// qr_uuid — that raises "invalid input syntax for type uuid" and fails the whole
+	// lookup with a spurious 404. Mirrors the public scan/validation handlers.
+	lookup, err := utils.ParseQRCodeParam(input.QRCode)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "QR code not found", nil)
+		return
+	}
 	var qrCode models.QRCode
-	if err := h.DB.Preload("Batch").Where("qr_code = ? OR qr_uuid = ?", input.QRCode, input.QRCode).First(&qrCode).Error; err != nil {
+	qrQuery := h.DB.Preload("Batch")
+	if lookup.LookupByCode {
+		qrQuery = qrQuery.Where("qr_code = ?", lookup.OriginalCode)
+	} else {
+		qrQuery = qrQuery.Where("qr_uuid = ?", lookup.QRUUID)
+	}
+	if err := qrQuery.First(&qrCode).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "QR code not found", nil)
 		return
 	}

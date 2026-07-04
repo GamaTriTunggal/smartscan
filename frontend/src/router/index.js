@@ -109,7 +109,7 @@ const routes = [
         path: 'counterfeit',
         name: 'TenantCounterfeit',
         component: () => import('@/pages/tenant/CounterfeitPage.vue'),
-        meta: {},
+        meta: { adminOnly: true },
       },
       {
         path: 'geofence',

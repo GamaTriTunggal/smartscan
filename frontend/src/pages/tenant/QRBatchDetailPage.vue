@@ -664,8 +664,8 @@ onUnmounted(() => {
           <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': retrying }" />
           {{ retrying ? 'Retrying...' : 'Retry Generation' }}
         </Button>
-        <!-- Export Buttons (disabled during generation, hidden for contracted tenants) -->
-        <template v-if="!authStore.isContracted">
+        <!-- Export Buttons (disabled during generation) -->
+        <template>
           <Button variant="outline" @click="exportCSV" :disabled="exporting.csv || !batch || isGenerating || isFailed"
             :title="isGenerating ? 'Export available after generation completes' : ''">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -881,8 +881,8 @@ onUnmounted(() => {
         </div>
       </Card>
 
-      <!-- Export Info Card (hidden for contracted tenants) -->
-      <Card v-if="!authStore.isContracted" class="p-4 bg-zinc-50 dark:bg-zinc-900/20 border-zinc-200 dark:border-zinc-800">
+      <!-- Export Info Card -->
+      <Card class="p-4 bg-zinc-50 dark:bg-zinc-900/20 border-zinc-200 dark:border-zinc-800">
         <div class="flex items-start gap-3">
           <svg class="w-5 h-5 text-zinc-600 dark:text-zinc-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

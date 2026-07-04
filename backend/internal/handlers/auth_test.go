@@ -309,6 +309,7 @@ func TestRefreshToken_Success(t *testing.T) {
 		nil,
 		testCfg.JWT.ExpirationHours,
 		testCfg.JWT.RefreshHours,
+		false,
 	)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
@@ -444,6 +445,7 @@ func TestLogout_Success(t *testing.T) {
 		nil,
 		testCfg.JWT.ExpirationHours,
 		testCfg.JWT.RefreshHours,
+		false,
 	)
 	if err != nil {
 		t.Fatalf("Failed to generate token: %v", err)

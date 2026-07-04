@@ -134,6 +134,7 @@ func GenerateTestToken(t *testing.T, cfg *config.Config, user *models.User, role
 		tenantID,
 		cfg.JWT.ExpirationHours,
 		cfg.JWT.RefreshHours,
+		false,
 	)
 	require.NoError(t, err, "Failed to generate token")
 	return tokenPair.AccessToken

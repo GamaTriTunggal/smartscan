@@ -130,6 +130,7 @@ func (h *SetupHandler) Run(c *gin.Context) {
 		&tenant.ID,
 		h.Cfg.JWT.ExpirationHours,
 		h.Cfg.JWT.RefreshHours,
+		false,
 	)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Setup completed, but sign-in failed — please log in manually", err)

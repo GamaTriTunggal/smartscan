@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"time"
 	"fmt"
 	"net/http"
 
@@ -193,6 +194,20 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	if err != nil {
 		sentry.CaptureHandlerError(c, err, "auth.RefreshToken", sentry.ErrorTypeAuth, sentry.SeverityMedium)
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid refresh token", err)
+		return
+	}
+
+	// Honor revocation on the refresh path too. AuthMiddleware enforces this for
+	// access tokens; without the same checks here a password reset / forced
+	// logout could be defeated by minting a fresh access token from an old
+	// refresh token. Fail-open when Redis is unavailable (matches middleware).
+	blacklist := utils.NewTokenBlacklist()
+	if blacklist.IsRevoked(refreshToken) {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Refresh token has been revoked", nil)
+		return
+	}
+	if claims.IssuedAt != nil && blacklist.IsUserTokensRevoked(claims.UserID.String(), claims.IssuedAt.Time) {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Session has been revoked — please sign in again", nil)
 		return
 	}
 
@@ -452,8 +467,24 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
+	// Evict all existing sessions (any stolen/other-device token issued before
+	// now is invalidated), then re-mint the caller's tokens so this session
+	// stays signed in. Fail-open when Redis is unavailable.
+	_ = utils.NewTokenBlacklist().RevokeUserTokens(user.ID.String(), time.Duration(h.Cfg.JWT.RefreshHours)*time.Hour)
+
+	var tenantID *uuid.UUID
+	if tid, ok := utils.GetTenantUUID(c); ok {
+		tenantID = &tid
+	}
+	if tokenPair, terr := utils.GenerateTokenPair(
+		h.Cfg.JWT.Secret, user.ID, user.Email, string(user.UserType),
+		c.GetString("role"), tenantID, h.Cfg.JWT.ExpirationHours, h.Cfg.JWT.RefreshHours,
+	); terr == nil {
+		utils.SetTokenCookies(c, tokenPair, h.Cfg.JWT.ExpirationHours, h.Cfg.JWT.RefreshHours)
+	}
+
 	// Audit log
 	audit.LogFromContext(c, h.DB, models.ActionTypeUpdate, "password", &user.ID, nil, nil)
 
-	utils.SuccessResponse(c, http.StatusOK, "Password berhasil diubah", nil)
+	utils.SuccessResponse(c, http.StatusOK, "Password changed successfully", nil)
 }

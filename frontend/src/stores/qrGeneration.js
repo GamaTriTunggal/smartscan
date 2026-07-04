@@ -69,8 +69,9 @@ export const useQRGenerationStore = defineStore('qrGeneration', {
      *   (backend filters terminal statuses, so removal implies completion)
      * @private
      */
-    _reconcile(generations) {
+    async _reconcile(generations) {
       const toast = useToast()
+      const { get } = useAPI()
       const fetchedIds = new Set(generations.map(g => g.batch_id))
 
       // Update / add batches
@@ -90,12 +91,17 @@ export const useQRGenerationStore = defineStore('qrGeneration', {
       for (const id of Object.keys(this.activeBatches)) {
         if (!fetchedIds.has(id)) {
           if (!this.notifiedBatchIds[id]) {
-            // Synthesise a completion notification since we missed the terminal-state poll
+            // The batch left the in-progress list — confirm its actual terminal
+            // state before notifying (it may have FAILED, not completed).
             const lastKnown = this.activeBatches[id]
-            this._notifyCompletion(
-              { ...lastKnown, status: 'completed' },
-              toast
-            )
+            let finalStatus = 'completed'
+            try {
+              const statusResp = await get(`/tenant/qr-batches/${id}/generation-status`)
+              if (statusResp?.success && statusResp.data?.status) {
+                finalStatus = statusResp.data.status
+              }
+            } catch (e) { /* keep optimistic default */ }
+            this._notifyCompletion({ ...lastKnown, status: finalStatus }, toast)
             this.notifiedBatchIds[id] = true
           }
           delete this.activeBatches[id]

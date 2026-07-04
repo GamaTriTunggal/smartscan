@@ -51,7 +51,7 @@ func (h *ThemePresetHandler) ListThemePresets(c *gin.Context) {
 	}
 
 	query.Count(&total)
-	query.Preload("Creator").Order("display_order ASC, name ASC").Offset(offset).Limit(limit).Find(&presets)
+	query.Order("display_order ASC, name ASC").Offset(offset).Limit(limit).Find(&presets)
 
 	utils.SuccessResponse(c, http.StatusOK, "Theme presets retrieved", gin.H{
 		"theme_presets": presets,
@@ -75,7 +75,7 @@ func (h *ThemePresetHandler) GetThemePreset(c *gin.Context) {
 	}
 
 	var preset models.ThemePreset
-	if err := h.DB.Unscoped().Preload("Creator").First(&preset, "id = ?", presetID).Error; err != nil {
+	if err := h.DB.Unscoped().First(&preset, "id = ?", presetID).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "Theme preset not found", err)
 		return
 	}

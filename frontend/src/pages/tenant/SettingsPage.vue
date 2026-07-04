@@ -50,12 +50,6 @@ const counterfeitSettings = ref({
   auto_flag_suspicious: true,
 })
 
-// Reconciliation settings (Phase 6.1 Wave 2c.4)
-const reconciliationSettings = ref({
-  replacement_window_months: 6,
-})
-const reconciliationLoaded = ref(false)
-
 const showCounterfeitTab = computed(() => true)
 
 function loadProfile() {
@@ -203,51 +197,10 @@ async function saveCounterfeitSettings() {
   }
 }
 
-// Phase 6.1 Wave 2c.4: Reconciliation settings (replacement_window_months).
-async function loadReconciliationSettings() {
-  loading.value = true
-  try {
-    const response = await get('/tenant/settings/reconciliation')
-    if (response.success && response.data) {
-      reconciliationSettings.value.replacement_window_months =
-        response.data.replacement_window_months || 6
-    }
-    reconciliationLoaded.value = true
-  } catch (error) {
-    console.error('Failed to load reconciliation settings:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function saveReconciliationSettings() {
-  const months = Number(reconciliationSettings.value.replacement_window_months)
-  if (!Number.isInteger(months) || months < 1 || months > 24) {
-    toast.error('Replacement window must be between 1 and 24 months')
-    return
-  }
-  saving.value = true
-  try {
-    const response = await put('/tenant/settings/reconciliation', {
-      replacement_window_months: months,
-    })
-    if (response.success) {
-      toast.success('Reconciliation settings saved')
-    } else {
-      toast.error(response.message || 'Failed to save settings')
-    }
-  } catch (error) {
-    toast.error(error?.response?.data?.message || 'Failed to save settings')
-  } finally {
-    saving.value = false
-  }
-}
-
 onMounted(async () => {
   loadProfile()
   loadCompanyInfo()
   loadCounterfeitSettings()
-  loadReconciliationSettings()
 })
 </script>
 
@@ -305,18 +258,6 @@ onMounted(async () => {
           ]"
         >
           Counterfeit Detection
-        </button>
-        <button
-          @click="activeTab = 'reconciliation'"
-          :class="[
-            'py-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap',
-            activeTab === 'reconciliation'
-              ? 'border-zinc-500 text-zinc-600'
-              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-          ]"
-          data-testid="reconciliation-settings-tab"
-        >
-          Reconciliation
         </button>
       </nav>
     </div>
@@ -622,42 +563,5 @@ onMounted(async () => {
       </Card>
     </div>
 
-    <!-- Reconciliation Tab (Wave 2c.4) -->
-    <div v-if="activeTab === 'reconciliation'">
-      <Card class="p-6 max-w-2xl">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">QR Reconciliation Settings</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">
-          Configure how long after delivery you can request replacement labels. Range: 1–24 months. Default: 6 months.
-        </p>
-
-        <div class="space-y-4">
-          <div>
-            <Label>Replacement Window (months)</Label>
-            <Input
-              v-model.number="reconciliationSettings.replacement_window_months"
-              type="number"
-              min="1"
-              max="24"
-              class="max-w-xs"
-              data-testid="replacement-window-months-input"
-            />
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Replacement requests are eligible until <strong>delivered_at + this many months</strong>.
-              New batches will use this value; existing batches continue with the value at submission time.
-            </p>
-          </div>
-
-          <div class="flex justify-end pt-4">
-            <Button
-              @click="saveReconciliationSettings"
-              :disabled="saving"
-              data-testid="save-reconciliation-settings"
-            >
-              {{ saving ? 'Saving...' : 'Save Settings' }}
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </div>
   </div>
 </template>

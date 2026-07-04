@@ -600,85 +600,10 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 			})
 		}
 
-		// Campaign Template Performance with trend
-		var campaignCurrentRaw []struct {
-			TemplateID   *uuid.UUID
-			TemplateName string
-			Count        int64
-		}
-		h.DB.Raw(`
-			WITH template_counts AS (
-				SELECT
-					c.template_id as template_id,
-					COALESCE(pt.template_name, 'Default Template') as template_name,
-					COUNT(*) as count
-				FROM campaign_participations cp
-				JOIN campaigns c ON c.id = cp.campaign_id
-				LEFT JOIN page_templates pt ON pt.id = c.template_id
-				WHERE c.tenant_id = ?
-					AND (cp.participated_at AT TIME ZONE 'UTC')::date >= ?
-					AND (cp.participated_at AT TIME ZONE 'UTC')::date <= ?
-				GROUP BY c.template_id, pt.template_name
-				ORDER BY count DESC
-			),
-			top_10 AS (
-				SELECT template_id, template_name, count
-				FROM template_counts
-				LIMIT 10
-			),
-			others AS (
-				SELECT NULL::uuid as template_id, 'Others' as template_name, COALESCE(SUM(count), 0) as count
-				FROM template_counts
-				WHERE (template_id, template_name) NOT IN (SELECT template_id, template_name FROM top_10)
-			)
-			SELECT * FROM top_10
-			UNION ALL
-			SELECT * FROM others WHERE count > 0
-		`, tenantUUID, fromDate, toDate).Scan(&campaignCurrentRaw)
-
-		var campaignPreviousRaw []struct {
-			TemplateID   *uuid.UUID
-			TemplateName string
-			Count        int64
-		}
-		h.DB.Raw(`
-			SELECT
-				c.template_id as template_id,
-				COALESCE(pt.template_name, 'Default Template') as template_name,
-				COUNT(*) as count
-			FROM campaign_participations cp
-			JOIN campaigns c ON c.id = cp.campaign_id
-			LEFT JOIN page_templates pt ON pt.id = c.template_id
-			WHERE c.tenant_id = ?
-				AND (cp.participated_at AT TIME ZONE 'UTC')::date >= ?
-				AND (cp.participated_at AT TIME ZONE 'UTC')::date <= ?
-			GROUP BY c.template_id, pt.template_name
-		`, tenantUUID, prevFromDate, prevToDate).Scan(&campaignPreviousRaw)
-
-		prevCampaignMap := make(map[string]int64)
-		for _, p := range campaignPreviousRaw {
-			prevCampaignMap[p.TemplateName] = p.Count
-		}
-
-		var campaignTemplatePerformance []TemplateUsage
-		for _, c := range campaignCurrentRaw {
-			prev := prevCampaignMap[c.TemplateName]
-			campaignTemplatePerformance = append(campaignTemplatePerformance, TemplateUsage{
-				TemplateID:    c.TemplateID,
-				TemplateName:  c.TemplateName,
-				Count:         c.Count,
-				PreviousCount: prev,
-				ChangePercent: calcChangePercent(c.Count, prev),
-			})
-		}
-
 		// Add to response — warranty only for dynamic (uses batch QR codes)
 		templatePerf := gin.H{
 			"validation": validationTemplatePerformance,
-			"campaign":   campaignTemplatePerformance,
-		}
-		if true {
-			templatePerf["warranty"] = warrantyTemplatePerformance
+			"warranty":   warrantyTemplatePerformance,
 		}
 		responseData["template_performance"] = templatePerf
 	}
@@ -873,36 +798,38 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 			return
 
 		case "province":
+			// Aggregate from interactions.geolocation JSON (province populated by the
+			// reverse-geocoder), mirroring the "country" case. The former
+			// campaign_participations source was removed with the campaign module.
 			var provinceAggregates []struct {
-				ProvinceID   int     `json:"province_id"`
 				ProvinceName string  `json:"province_name"`
-				CountryCode  string  `json:"country_code"`
+				CountryName  string  `json:"country_name"`
 				TotalScans   int64   `json:"total_scans"`
 				CenterLat    float64 `json:"center_lat"`
 				CenterLng    float64 `json:"center_lng"`
 			}
-			query := `
+			query := fmt.Sprintf(`
 				SELECT
-					cp.province_id,
-					p.name as province_name,
-					cp.country_code,
+					i.geolocation->>'province' as province_name,
+					i.geolocation->>'country' as country_name,
 					COUNT(*) as total_scans,
-					AVG(cp.geo_latitude) as center_lat,
-					AVG(cp.geo_longitude) as center_lng
-				FROM campaign_participations cp
-				JOIN campaigns cam ON cam.id = cp.campaign_id
-				JOIN provinces p ON p.id = cp.province_id
-				WHERE cam.tenant_id = ?
-					AND cp.province_id IS NOT NULL
-					AND DATE(cp.participated_at) >= ? AND DATE(cp.participated_at) <= ?`
-			args := []interface{}{tenantUUID, fromDate, toDate}
+					AVG((i.geolocation->>'lat')::float) as center_lat,
+					AVG((i.geolocation->>'lng')::float) as center_lng
+				FROM interactions i
+				WHERE i.tenant_id = ?
+					AND i.interaction_category = ?
+					AND i.geolocation IS NOT NULL
+					AND COALESCE(i.geolocation->>'province', '') <> ''
+					AND DATE(i.created_at) >= ? AND DATE(i.created_at) <= ?
+					%s`, qrTypeSQL)
+			args := []interface{}{tenantUUID, models.InteractionCategoryEndUserAccess, fromDate, toDate}
 
 			if countryFilter != "" {
-				query += " AND UPPER(cp.country_code) = UPPER(?)"
+				query += " AND UPPER(SUBSTRING(COALESCE(i.geolocation->>'country',''),1,2)) = UPPER(?)"
 				args = append(args, countryFilter)
 			}
 
-			query += " GROUP BY cp.province_id, p.name, cp.country_code ORDER BY total_scans DESC LIMIT 50"
+			query += " GROUP BY i.geolocation->>'province', i.geolocation->>'country' ORDER BY total_scans DESC LIMIT 50"
 			h.DB.Raw(query, args...).Scan(&provinceAggregates)
 			response["province_aggregates"] = provinceAggregates
 			response["points"] = []interface{}{}
@@ -912,33 +839,32 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 
 		case "city":
 			var cityAggregates []struct {
-				CityID     int     `json:"city_id"`
 				CityName   string  `json:"city_name"`
 				TotalScans int64   `json:"total_scans"`
 				CenterLat  float64 `json:"center_lat"`
 				CenterLng  float64 `json:"center_lng"`
 			}
-			query := `
+			query := fmt.Sprintf(`
 				SELECT
-					cp.city_id,
-					ct.name as city_name,
+					i.geolocation->>'city' as city_name,
 					COUNT(*) as total_scans,
-					AVG(cp.geo_latitude) as center_lat,
-					AVG(cp.geo_longitude) as center_lng
-				FROM campaign_participations cp
-				JOIN campaigns cam ON cam.id = cp.campaign_id
-				JOIN cities ct ON ct.id = cp.city_id
-				WHERE cam.tenant_id = ?
-					AND cp.city_id IS NOT NULL
-					AND DATE(cp.participated_at) >= ? AND DATE(cp.participated_at) <= ?`
-			args := []interface{}{tenantUUID, fromDate, toDate}
+					AVG((i.geolocation->>'lat')::float) as center_lat,
+					AVG((i.geolocation->>'lng')::float) as center_lng
+				FROM interactions i
+				WHERE i.tenant_id = ?
+					AND i.interaction_category = ?
+					AND i.geolocation IS NOT NULL
+					AND COALESCE(i.geolocation->>'city', '') <> ''
+					AND DATE(i.created_at) >= ? AND DATE(i.created_at) <= ?
+					%s`, qrTypeSQL)
+			args := []interface{}{tenantUUID, models.InteractionCategoryEndUserAccess, fromDate, toDate}
 
 			if countryFilter != "" {
-				query += " AND UPPER(cp.country_code) = UPPER(?)"
+				query += " AND UPPER(SUBSTRING(COALESCE(i.geolocation->>'country',''),1,2)) = UPPER(?)"
 				args = append(args, countryFilter)
 			}
 
-			query += " GROUP BY cp.city_id, ct.name ORDER BY total_scans DESC LIMIT 100"
+			query += " GROUP BY i.geolocation->>'city' ORDER BY total_scans DESC LIMIT 100"
 			h.DB.Raw(query, args...).Scan(&cityAggregates)
 			response["city_aggregates"] = cityAggregates
 			response["points"] = []interface{}{}

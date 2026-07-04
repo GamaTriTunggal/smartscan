@@ -42,8 +42,6 @@ const {
 const newBatch = ref({
   batch_name: '',
   qr_count: 100,
-  // Phase 6.1.5: tenant-side application spare. 0..10% of qr_count, validated server-side.
-  application_spare_qty: 0,
   prefix: '',
   suffix: '',
   production_date: '',
@@ -63,7 +61,6 @@ const resetForm = () => {
   newBatch.value = {
     batch_name: '',
     qr_count: 100,
-    application_spare_qty: 0,
     prefix: '',
     suffix: '',
     production_date: '',
@@ -166,13 +163,7 @@ useEscapeKey(() => emit('close'), toRef(props, 'open'))
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Max 5,000,000 per batch. Large batches run in the background — you can navigate away while they generate.</p>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Application Spare</label>
-          <Input v-model.number="newBatch.application_spare_qty" type="number" min="0" :max="Math.ceil((newBatch.qr_count || 0) * 0.10)" />
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Optional reserve for in-house application waste (max 10% of QR count). Total physical labels = {{ ((newBatch.qr_count || 0) + (newBatch.application_spare_qty || 0)).toLocaleString() }}.
-          </p>
-        </div>
+        
 
         <div class="grid grid-cols-2 gap-4">
           <div>

@@ -309,18 +309,10 @@ const loadingSocial = ref(false)
 const showAddSocialModal = ref(false)
 const newSocial = ref({ platform_id: '', handle_or_url: '' })
 
-// Request modals
-const showRequestCertModal = ref(false)
-const showRequestSocialModal = ref(false)
-const requestCertForm = ref({ requested_name: '', requested_country_code: null, description: '', reference_url: '' })
-const requestSocialForm = ref({ requested_name: '', website_url: '', description: '' })
-const countries = ref([])
 
 // Escape key to close modals
 useEscapeKey(() => { showAddCertModal.value = false }, showAddCertModal)
-useEscapeKey(() => { showRequestCertModal.value = false }, showRequestCertModal)
 useEscapeKey(() => { showAddSocialModal.value = false }, showAddSocialModal)
-useEscapeKey(() => { showRequestSocialModal.value = false }, showRequestSocialModal)
 
 // Navigate back to products list
 const goBack = () => {
@@ -942,54 +934,6 @@ async function removeSocialLink(linkId) {
   }
 }
 
-// Request new certification type
-async function fetchCountries() {
-  try {
-    const response = await get('/locations/countries')
-    if (response.success) {
-      const seaCountryCodes = ['ID', 'MY', 'PH', 'SG', 'TH', 'VN']
-      countries.value = (response.data || []).filter(c => seaCountryCodes.includes(c.code))
-    }
-  } catch (error) {
-    console.error('Failed to fetch countries:', error)
-  }
-}
-
-async function submitCertRequest() {
-  if (!requestCertForm.value.requested_name) return
-
-  try {
-    const response = await post('/tenant/certifications/requests', requestCertForm.value)
-    if (response.success) {
-      showRequestCertModal.value = false
-      requestCertForm.value = { requested_name: '', requested_country_code: null, description: '', reference_url: '' }
-      alert('Request submitted successfully')
-    } else {
-      alert(response.message || 'Failed to submit request')
-    }
-  } catch (error) {
-    console.error('Failed to submit request:', error)
-    alert('Failed to submit request')
-  }
-}
-
-async function submitSocialRequest() {
-  if (!requestSocialForm.value.requested_name) return
-
-  try {
-    const response = await post('/tenant/social-media/requests', requestSocialForm.value)
-    if (response.success) {
-      showRequestSocialModal.value = false
-      requestSocialForm.value = { requested_name: '', website_url: '', description: '' }
-      alert('Request submitted successfully')
-    } else {
-      alert(response.message || 'Failed to submit request')
-    }
-  } catch (error) {
-    console.error('Failed to submit request:', error)
-    alert('Failed to submit request')
-  }
-}
 
 function getSelectedPlaceholder() {
   const platform = availablePlatforms.value.find(p => p.id === newSocial.value.platform_id)
@@ -1033,9 +977,7 @@ const tour = useTour()
 
 function closeAllModals() {
   showAddCertModal.value = false
-  showRequestCertModal.value = false
   showAddSocialModal.value = false
-  showRequestSocialModal.value = false
 }
 
 function handleTourSetValue(e) {
@@ -1147,7 +1089,6 @@ onMounted(async () => {
   fetchPreviewImages()
   fetchAvailableCertTypes()
   fetchAvailablePlatforms()
-  fetchCountries()
   fetchCounterfeitSettings()
   // Tour support
   window.addEventListener('tour-cancelled', closeAllModals)
@@ -1577,9 +1518,6 @@ watch(() => route.query.tab, (newTab) => {
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Product Certifications</h2>
             <div class="flex gap-2">
-              <Button variant="outline" size="sm" @click="showRequestCertModal = true">
-                Request New Type
-              </Button>
               <Button size="sm" @click="showAddCertModal = true" :disabled="unusedCertTypes.length === 0" data-tour="add-cert-btn-detail">
                 Add Certification
               </Button>
@@ -2224,88 +2162,5 @@ watch(() => route.query.tab, (newTab) => {
       </div>
     </div>
 
-    <!-- Request Certification Modal -->
-    <div v-if="showRequestCertModal" class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="fixed inset-0 bg-black/50" @click="showRequestCertModal = false"></div>
-      <div class="relative z-10 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Request New Certification Type</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Can't find the certification you need? Submit a request and our team will review it.
-        </p>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Certification Name *</label>
-            <Input v-model="requestCertForm.requested_name" placeholder="e.g., FDA Approval" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Country</label>
-            <select
-              v-model="requestCertForm.requested_country_code"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27272a]"
-            >
-              <option :value="null">International (No Country)</option>
-              <option v-for="country in countries" :key="country.code" :value="country.code">
-                {{ country.name }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-            <textarea
-              v-model="requestCertForm.description"
-              rows="2"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27272a]"
-              placeholder="Brief description of this certification..."
-            ></textarea>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference URL</label>
-            <Input v-model="requestCertForm.reference_url" placeholder="https://..." />
-          </div>
-        </div>
-        <div class="flex gap-3 pt-4">
-          <Button variant="outline" class="flex-1" @click="showRequestCertModal = false">Cancel</Button>
-          <Button class="flex-1" @click="submitCertRequest" :disabled="!requestCertForm.requested_name">
-            Submit Request
-          </Button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Request Social Platform Modal -->
-    <div v-if="showRequestSocialModal" class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="fixed inset-0 bg-black/50" @click="showRequestSocialModal = false"></div>
-      <div class="relative z-10 w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6">
-        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Request New Social Platform</h2>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Can't find the platform you need? Submit a request and our team will review it.
-        </p>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Platform Name *</label>
-            <Input v-model="requestSocialForm.requested_name" placeholder="e.g., Threads" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Website URL</label>
-            <Input v-model="requestSocialForm.website_url" placeholder="https://..." />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-            <textarea
-              v-model="requestSocialForm.description"
-              rows="2"
-              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27272a]"
-              placeholder="Brief description..."
-            ></textarea>
-          </div>
-        </div>
-        <div class="flex gap-3 pt-4">
-          <Button variant="outline" class="flex-1" @click="showRequestSocialModal = false">Cancel</Button>
-          <Button class="flex-1" @click="submitSocialRequest" :disabled="!requestSocialForm.requested_name">
-            Submit Request
-          </Button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>

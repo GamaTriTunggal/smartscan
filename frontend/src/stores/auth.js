@@ -79,23 +79,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(data) {
-    const { post } = useAPI()
-    try {
-      const response = await post('/auth/register', data)
-      if (response.success && response.data) {
-        setAuthenticated(true)
-        setUser(response.data.user)
-        if (response.data.expires_in) {
-          setTokenExpiry(response.data.expires_in)
-        }
-        return true
-      }
-      return false
-    } catch {
-      return false
-    }
-  }
 
   async function fetchUser() {
     if (!authenticated.value) return false
@@ -262,7 +245,6 @@ export const useAuthStore = defineStore('auth', () => {
     setAuthenticated,
     setTokenExpiry,
     login,
-    register,
     fetchUser,
     logout,
     changePassword,

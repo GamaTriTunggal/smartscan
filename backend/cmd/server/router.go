@@ -221,10 +221,11 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 				// Tenant info
 				tenant.GET("/info", tenantHandler.GetMyTenant)
-				tenant.PUT("/info", tenantHandler.UpdateMyTenant)
+				tenant.PUT("/info", middleware.TenantAdminOnly(), tenantHandler.UpdateMyTenant)
 
-				// Products
+				// Products (admin-only: qc/warehouse staff have their own job pages)
 				products := tenant.Group("/products")
+				products.Use(middleware.TenantAdminOnly())
 				{
 					products.GET("", productHandler.ListProducts)
 					products.GET("/:id", productHandler.GetProduct)
@@ -248,8 +249,9 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					products.PUT("/:id/social-accounts/reorder", productSocialAccountHandler.Reorder)
 				}
 
-				// QR Batches
+				// QR Batches (admin-only)
 				batches := tenant.Group("/qr-batches")
+				batches.Use(middleware.TenantAdminOnly())
 				{
 					// Async generation endpoints (MUST come before /:id to avoid path conflicts in Gin)
 					batches.GET("/active-generations", qrBatchHandler.GetActiveGenerations)

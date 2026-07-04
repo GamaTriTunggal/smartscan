@@ -35,11 +35,17 @@ func ResolveCounterfeitThreshold(db *gorm.DB, qrCode *models.QRCode) int {
 		var settings models.TenantSettings
 		if err := db.Where("tenant_id = ? AND setting_key = ?", qrCode.Batch.TenantID, "counterfeit_thresholds").
 			First(&settings).Error; err == nil {
-			var thresholds map[string]int
+			// The blob mixes ints and bools (velocity_check_enabled etc.), so it
+			// must NOT be decoded into map[string]int — that returns an error and
+			// silently drops the tenant's configured threshold. Use a typed struct;
+			// a non-nil pointer (including an explicit 0 = detection disabled) wins.
+			var thresholds struct {
+				EndUserScanMax *int `json:"end_user_scan_max"`
+			}
 			if err := json.Unmarshal(settings.SettingValue, &thresholds); err != nil {
 				log.Printf("Warning: failed to parse counterfeit_thresholds for tenant %s: %v", qrCode.Batch.TenantID, err)
-			} else if t, ok := thresholds["end_user_scan_max"]; ok {
-				return t
+			} else if thresholds.EndUserScanMax != nil {
+				return *thresholds.EndUserScanMax
 			}
 		}
 	}

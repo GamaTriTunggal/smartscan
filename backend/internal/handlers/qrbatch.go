@@ -1560,7 +1560,7 @@ func (h *QRBatchHandler) RestoreQRBatch(c *gin.Context) {
 	}
 
 	// Reload with preloads
-	h.DB.Preload("Product").Preload("Campaign").Preload("CreatedByStaff").
+	h.DB.Preload("Product").Preload("CreatedByStaff").
 		First(&batch, "id = ?", batch.ID)
 
 	utils.SuccessResponse(c, http.StatusOK, "Batch restored", batch)

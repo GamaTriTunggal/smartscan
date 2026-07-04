@@ -12,6 +12,7 @@ import (
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -92,7 +93,13 @@ func (h *ScanningHandler) checkCounterfeitThreshold(tenantID uuid.UUID, qrCodeID
 		return false, 0, 0
 	}
 
-	var thresholds map[string]int
+	// The blob mixes ints and bools (velocity_check_enabled etc.); decoding into
+	// map[string]int errors on the bools and disabled detection entirely. Use a
+	// typed struct so the int thresholds are read correctly.
+	var thresholds struct {
+		QCScanMax        int `json:"qc_scan_max"`
+		WarehouseScanMax int `json:"warehouse_scan_max"`
+	}
 	if err := json.Unmarshal(setting.SettingValue, &thresholds); err != nil {
 		return false, 0, 0
 	}
@@ -100,9 +107,9 @@ func (h *ScanningHandler) checkCounterfeitThreshold(tenantID uuid.UUID, qrCodeID
 	var maxCount int
 	switch scanType {
 	case "qc_scan":
-		maxCount = thresholds["qc_scan_max"]
+		maxCount = thresholds.QCScanMax
 	case "warehouse_scan":
-		maxCount = thresholds["warehouse_scan_max"]
+		maxCount = thresholds.WarehouseScanMax
 	default:
 		return false, 0, 0
 	}
@@ -127,11 +134,18 @@ func createCounterfeitDetection(db *gorm.DB, tenantID, qrCodeID uuid.UUID, reaso
 	// Check if detection already exists
 	var existing models.CounterfeitDetection
 	if err := db.Where("qr_code_id = ? AND status = ?", qrCodeID, "active").First(&existing).Error; err == nil {
-		// Update existing
+		// Update existing — accumulate the triggering interaction id.
 		now := time.Now().UTC()
+		ids := []string{}
+		if len(existing.InteractionIDs) > 0 {
+			_ = json.Unmarshal(existing.InteractionIDs, &ids)
+		}
+		ids = append(ids, interactionID.String())
+		idsJSON, _ := json.Marshal(ids)
 		if err := db.Model(&existing).Updates(map[string]interface{}{
 			"total_interactions_count": existing.TotalInteractionsCount + 1,
 			"last_interaction_at":      now,
+			"interaction_ids":          datatypes.JSON(idsJSON),
 		}).Error; err != nil {
 			fmt.Printf("[COUNTERFEIT] Failed to update detection count for QR %s: %v\n", qrCodeID, err)
 		}
@@ -140,6 +154,7 @@ func createCounterfeitDetection(db *gorm.DB, tenantID, qrCodeID uuid.UUID, reaso
 
 	// Create new detection
 	now := time.Now().UTC()
+	idsJSON, _ := json.Marshal([]string{interactionID.String()})
 	detection := models.CounterfeitDetection{
 		QRCodeID:               qrCodeID,
 		TenantID:               tenantID,
@@ -147,6 +162,7 @@ func createCounterfeitDetection(db *gorm.DB, tenantID, qrCodeID uuid.UUID, reaso
 		TotalInteractionsCount: 1,
 		FirstInteractionAt:     &now,
 		LastInteractionAt:      &now,
+		InteractionIDs:         datatypes.JSON(idsJSON),
 		Status:                 "active",
 	}
 	db.Create(&detection)
@@ -234,8 +250,8 @@ func (h *ScanningHandler) QCScan(c *gin.Context) {
 		return
 	}
 
-	// Verify QR belongs to tenant
-	if qrCode.Batch.TenantID != tenantUUID {
+	// Verify QR belongs to tenant (Batch is nil if the batch was soft-deleted)
+	if qrCode.Batch == nil || qrCode.Batch.TenantID != tenantUUID {
 		utils.ErrorResponse(c, http.StatusForbidden, "QR code does not belong to this tenant", nil)
 		return
 	}
@@ -463,8 +479,8 @@ func (h *ScanningHandler) WarehouseScan(c *gin.Context) {
 		return
 	}
 
-	// Verify QR belongs to tenant
-	if qrCode.Batch.TenantID != tenantUUID {
+	// Verify QR belongs to tenant (Batch is nil if the batch was soft-deleted)
+	if qrCode.Batch == nil || qrCode.Batch.TenantID != tenantUUID {
 		utils.ErrorResponse(c, http.StatusForbidden, "QR code does not belong to this tenant", nil)
 		return
 	}

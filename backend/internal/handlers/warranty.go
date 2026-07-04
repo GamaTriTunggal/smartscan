@@ -324,7 +324,7 @@ func (h *WarrantyHandler) RegisterWarranty(c *gin.Context) {
 
 	if err := h.DB.Create(&warranty).Error; err != nil {
 		// Check for unique constraint violation (race condition protection)
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "idx_warranty_activations_qr_code_id") {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "uniq_warranty_activations_qr_code") {
 			utils.ErrorResponse(c, http.StatusConflict, "Warranty has already been registered for this product", nil)
 			return
 		}

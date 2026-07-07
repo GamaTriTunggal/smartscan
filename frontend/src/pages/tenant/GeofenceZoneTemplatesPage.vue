@@ -55,8 +55,8 @@ async function fetchTemplates() {
     })
     if (response.success) {
       templates.value = response.data?.zone_templates || []
-      total.value = response.data?.total || 0
-      totalPages.value = response.data?.total_pages || 0
+      total.value = response.data?.pagination?.total || 0
+      totalPages.value = response.data?.pagination?.total_page || 0
     }
   } catch (error) {
     console.error('Failed to fetch zone templates:', error)

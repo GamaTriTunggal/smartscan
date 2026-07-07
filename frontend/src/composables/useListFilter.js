@@ -5,9 +5,9 @@ import { useDebounceFn } from '@vueuse/core'
  * Reusable composable for list pages with search, pagination, and filters.
  *
  * @param {Function} fetchFn - The function to call when filters change or page navigates
- * @param {Object} options
- * @param {number} options.limit - Items per page (default 20)
- * @param {number} options.debounceMs - Debounce delay for search input (default 300)
+ * @param {Object} [options]
+ * @param {number} [options.limit] - Items per page (default 20)
+ * @param {number} [options.debounceMs] - Debounce delay for search input (default 300)
  * @returns {{ search, pagination, watchFilter, prevPage, nextPage }}
  *
  * Usage:

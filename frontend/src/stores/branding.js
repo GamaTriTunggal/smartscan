@@ -5,16 +5,20 @@ import { useAPI } from '@/composables/useAPI'
 // Get app name from environment variable, fallback to 'smartscan'
 export const DEFAULT_APP_NAME = import.meta.env.VITE_APP_NAME || 'smartscan'
 
+// Defaults merged under every server/cache payload so a partial response
+// never leaves a field undefined (e.g. in the headerGradient CSS string).
+const DEFAULT_BRANDING = {
+  app_name: DEFAULT_APP_NAME,
+  logo_url: '',
+  header_gradient_start: '#18181b',
+  header_gradient_end: '#FFAB2E',
+  header_text_color: '#ffffff',
+  button_bg_color: '#F5A623',
+  button_text_color: '#ffffff'
+}
+
 export const useBrandingStore = defineStore('branding', () => {
-  const branding = ref({
-    app_name: DEFAULT_APP_NAME,
-    logo_url: '',
-    header_gradient_start: '#18181b',
-    header_gradient_end: '#FFAB2E',
-    header_text_color: '#ffffff',
-    button_bg_color: '#F5A623',
-    button_text_color: '#ffffff'
-  })
+  const branding = ref({ ...DEFAULT_BRANDING })
 
   const loading = ref(false)
   const error = ref(null)
@@ -41,7 +45,7 @@ export const useBrandingStore = defineStore('branding', () => {
       // Use public endpoint (no auth required)
       const response = await get('/public/branding')
       if (response.success && response.data) {
-        branding.value = response.data
+        branding.value = { ...DEFAULT_BRANDING, ...response.data }
         loaded.value = true
         // Also save to localStorage for faster initial load
         localStorage.setItem('branding', JSON.stringify(response.data))
@@ -54,7 +58,7 @@ export const useBrandingStore = defineStore('branding', () => {
       const cached = localStorage.getItem('branding')
       if (cached) {
         try {
-          branding.value = JSON.parse(cached)
+          branding.value = { ...DEFAULT_BRANDING, ...JSON.parse(cached) }
           loaded.value = true
         } catch {}
       }
@@ -72,7 +76,7 @@ export const useBrandingStore = defineStore('branding', () => {
     try {
       const response = await put('/tenant/app-settings/branding', data)
       if (response.success && response.data) {
-        branding.value = response.data
+        branding.value = { ...DEFAULT_BRANDING, ...response.data }
         localStorage.setItem('branding', JSON.stringify(response.data))
         return true
       }
@@ -89,7 +93,7 @@ export const useBrandingStore = defineStore('branding', () => {
     const cached = localStorage.getItem('branding')
     if (cached) {
       try {
-        branding.value = JSON.parse(cached)
+        branding.value = { ...DEFAULT_BRANDING, ...JSON.parse(cached) }
       } catch {}
     }
   }

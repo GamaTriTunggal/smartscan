@@ -9,8 +9,8 @@ const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'
 /**
  * Composable for tracking user inactivity and auto-logout
  * @param {Function} onTimeout - Callback function to call when timeout occurs (typically logout)
- * @param {Object} options - Optional configuration
- * @param {number} options.timeoutMs - Custom timeout in milliseconds (default: 30 minutes)
+ * @param {Object} [options] - Optional configuration
+ * @param {number} [options.timeoutMs] - Custom timeout in milliseconds (default: 30 minutes)
  */
 export function useInactivityTimeout(onTimeout, options = {}) {
   const timeoutMs = options.timeoutMs || INACTIVITY_TIMEOUT_MS

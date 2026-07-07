@@ -187,7 +187,7 @@ const translations = {
  */
 export function useTranslation() {
   // Detect browser language
-  const browserLang = navigator.language || navigator.userLanguage || 'en'
+  const browserLang = navigator.language || 'en'
 
   // Determine language code
   let detectedLang = 'en' // default

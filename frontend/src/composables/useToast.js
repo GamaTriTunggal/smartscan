@@ -17,9 +17,9 @@ export function useToast() {
   /**
    * Add a toast notification
    * @param {string} message - The message to display
-   * @param {string} type - Toast type: 'success' | 'error' | 'info' | 'warning'
-   * @param {object} options - Optional settings
-   * @param {number} options.duration - Auto-dismiss duration in ms (default: 5000, 0 = no auto-dismiss)
+   * @param {string} [type='info'] - Toast type: 'success' | 'error' | 'info' | 'warning'
+   * @param {object} [options] - Optional settings
+   * @param {number} [options.duration] - Auto-dismiss duration in ms (default: 5000, 0 = no auto-dismiss)
    */
   function addToast(message, type = 'info', options = {}) {
     const id = ++toastId

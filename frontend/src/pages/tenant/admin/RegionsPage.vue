@@ -267,12 +267,21 @@ async function fetchCities() {
   citiesLoading.value = true
   try {
     let url = `/tenant/location-master/cities?status=${citiesStatusFilter.value}&limit=100`
-    if (citiesSearch.value) url += `&search=${citiesSearch.value}`
+    if (citiesSearch.value) url += `&search=${encodeURIComponent(citiesSearch.value)}`
     if (citiesProvinceFilter.value) url += `&province_id=${citiesProvinceFilter.value}`
-    const response = await get(url)
-    if (response.success) {
-      cities.value = response.data?.cities || []
-    }
+    // The backend caps limit at 100, so walk every page — the seed data alone
+    // has 800+ cities and this table has no pager of its own.
+    const all = []
+    let pageNum = 1
+    let totalPage = 1
+    do {
+      const response = await get(`${url}&page=${pageNum}`)
+      if (!response.success) break
+      all.push(...(response.data?.cities || []))
+      totalPage = response.data?.pagination?.total_page || 1
+      pageNum++
+    } while (pageNum <= totalPage)
+    cities.value = all
   } catch (error) {
     console.error('Failed to fetch cities:', error)
   } finally {

@@ -71,7 +71,10 @@ const handleFileSelect = async (event) => {
     const response = await api.post('/tenant/uploads/background', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
-        uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        // total is undefined when the browser can't determine upload size
+        if (progressEvent.total) {
+          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        }
       }
     })
 

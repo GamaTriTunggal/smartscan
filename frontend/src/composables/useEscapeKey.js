@@ -5,7 +5,7 @@ import { isTourActive } from '@/composables/useTour.js'
  * Composable for handling Escape key to close modals
  *
  * @param {Function} callback - Function to call when Escape is pressed
- * @param {Ref<boolean>} isActive - Optional ref to check if handler should be active
+ * @param {import('vue').Ref<boolean>} [isActive] - Optional ref to check if handler should be active
  *
  * @example
  * // Basic usage - always active

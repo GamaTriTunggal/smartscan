@@ -410,7 +410,9 @@ export function useTour() {
       popoverClass: 'smartscan-tour-popover',
       allowKeyboardControl: false,
       onCloseClick: () => cancelTour(),
-      onOverlayClick: () => {}, // prevent accidental close
+      // A function value makes overlay clicks a no-op (driver.js only closes
+      // when this is the string 'close') — prevents accidental close.
+      overlayClickBehavior: () => {},
     })
 
     driverInstance.highlight({
@@ -437,7 +439,7 @@ export function useTour() {
     // Handle step type
     if (step.type === 'auto-fill' || step.type === 'auto-click') {
       if (step.waitForNext) {
-        setupInfoStep(step)
+        setupInfoStep()
       } else {
         const advanceMs = step.autoAdvanceMs || 1500
         setTimeout(() => {
@@ -448,7 +450,7 @@ export function useTour() {
       setupInteractiveStep(step)
     } else if (step.type === 'info') {
       // Info step: show Next/Finish button via click handler on popover
-      setupInfoStep(step)
+      setupInfoStep()
     }
   }
 

@@ -11,10 +11,10 @@ export function useNotifications() {
   /**
    * Show a notification
    * @param {Object} options
-   * @param {string} options.type - 'success' | 'error' | 'warning' | 'info'
-   * @param {string} options.title - Notification title
-   * @param {string} options.message - Notification message
-   * @param {number} options.duration - Auto-dismiss duration in ms (0 = no auto-dismiss)
+   * @param {string} [options.type='info'] - 'success' | 'error' | 'warning' | 'info'
+   * @param {string} [options.title] - Notification title
+   * @param {string} [options.message] - Notification message
+   * @param {number} [options.duration=5000] - Auto-dismiss duration in ms (0 = no auto-dismiss)
    * @returns {number} Notification ID
    */
   const notify = ({ type = 'info', title = '', message = '', duration = 5000 }) => {
@@ -61,26 +61,14 @@ export function useNotifications() {
   const warning = (title, message = '') => notify({ type: 'warning', title, message })
   const info = (title, message = '') => notify({ type: 'info', title, message })
 
-  // Aliases for backward compatibility (used by useBundle.js and other composables)
-  const showSuccess = (title, message = '') => success(title, message)
-  const showError = (title, message = '') => error(title, message)
-  const showWarning = (title, message = '') => warning(title, message)
-  const showInfo = (title, message = '') => info(title, message)
-
   return {
     notifications,
     notify,
     removeNotification,
     clearAll,
-    // Primary methods
     success,
     error,
     warning,
-    info,
-    // Aliases
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo
+    info
   }
 }

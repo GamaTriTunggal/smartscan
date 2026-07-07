@@ -157,15 +157,22 @@ func (w *QRGenerationWorker) processNext(ctx context.Context) error {
 	}
 	if !lockAcquired {
 		// Another worker is processing a job for this tenant
-		// Nack and re-enqueue (will try again later)
+		// Re-enqueue so it goes to the back of the queue (will try again later).
 		log.Printf("[QRGenWorker %s] Tenant %s already has active generation, re-queuing", w.id, job.TenantID)
-		// Ack current stream message and re-enqueue so it goes to the back of the queue
-		w.queue.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, job.StreamID)
-		w.queue.client.XDel(ctx, QRGenStreamQueue, job.StreamID)
-		job.StreamID = ""
 		// Small delay to avoid tight loop when lots of jobs are blocked on the same tenant
 		time.Sleep(500 * time.Millisecond)
-		return w.queue.Enqueue(ctx, job)
+		// Enqueue-then-ack: only drop the original stream message after the
+		// re-enqueue is confirmed, so a transient Enqueue failure (e.g. circuit
+		// breaker open) cannot lose the job from both the stream and the PEL.
+		oldStreamID := job.StreamID
+		job.StreamID = ""
+		if err := w.queue.Enqueue(ctx, job); err != nil {
+			job.StreamID = oldStreamID
+			return err
+		}
+		w.queue.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, oldStreamID)
+		w.queue.client.XDel(ctx, QRGenStreamQueue, oldStreamID)
+		return nil
 	}
 
 	// Ensure lock is released when we're done. Use a fresh context because the worker-pool
@@ -563,14 +570,18 @@ func (w *QRGenerationWorker) claimStaleJobs(ctx context.Context) {
 		if !lockAcquired {
 			log.Printf("[QRGenWorker %s] Tenant %s has active lock; re-queueing claimed job %s",
 				w.id, job.TenantID, job.ID)
-			// Ack current message and re-enqueue so it won't stay pending
-			w.queue.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, job.StreamID)
-			w.queue.client.XDel(ctx, QRGenStreamQueue, job.StreamID)
+			// Enqueue-then-ack: keep the claimed message in the PEL until the
+			// re-enqueue is confirmed, so a transient Enqueue failure cannot drop it.
+			oldStreamID := job.StreamID
 			job.StreamID = ""
 			if enqErr := w.queue.Enqueue(ctx, job); enqErr != nil {
 				log.Printf("[QRGenWorker %s] Failed to re-enqueue claimed job %s: %v",
 					w.id, job.ID, enqErr)
+				job.StreamID = oldStreamID // leave it pending for the next claim cycle
+				continue
 			}
+			w.queue.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, oldStreamID)
+			w.queue.client.XDel(ctx, QRGenStreamQueue, oldStreamID)
 			continue
 		}
 

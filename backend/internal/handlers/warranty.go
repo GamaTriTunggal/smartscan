@@ -479,14 +479,15 @@ func (h *WarrantyHandler) GetWarrantyStatus(c *gin.Context) {
 	}
 
 	if warrantyRegistered {
+		// Only the (non-PII) expiry date is exposed publicly. Registrant PII —
+		// customer_name, purchase_store, purchase_date, activated_at — is deliberately
+		// NOT returned here: this endpoint is unauthenticated and the QR code is
+		// printed on the physical product label, so anyone who scans or enumerates a
+		// code could otherwise harvest the buyer's name and purchase location. The
+		// registrant sees their own details on the post-registration confirmation
+		// (from the data they just submitted); tenant admins retrieve full details via
+		// the authenticated, tenant-scoped /warranties endpoints.
 		result["warranty_expiry"] = existingWarranty.WarrantyExpiryDate
-		result["warranty_activation"] = gin.H{
-			"customer_name":        existingWarranty.CustomerName,
-			"purchase_date":        existingWarranty.PurchaseDate,
-			"activated_at":         existingWarranty.ActivatedAt,
-			"warranty_expiry_date": existingWarranty.WarrantyExpiryDate,
-			"purchase_store":       existingWarranty.PurchaseStore,
-		}
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Warranty status", result)

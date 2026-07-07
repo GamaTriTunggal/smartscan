@@ -16,6 +16,12 @@ const POLL_INTERVAL_MS = 2000
 // There's one store instance per app, so a single module-level ref is safe.
 let _pollingTimer = null
 
+// Guards against overlapping _reconcile runs. _reconcile awaits per-batch status
+// GETs; on a slow connection a later poll tick could start a second reconcile that
+// re-passes the notifiedBatchIds check for the same batch before the first sets it,
+// firing duplicate toasts. A single-flight boolean serialises reconciles.
+let _reconciling = false
+
 export const useQRGenerationStore = defineStore('qrGeneration', {
   state: () => ({
     // Map of batch_id -> generation status object
@@ -70,47 +76,63 @@ export const useQRGenerationStore = defineStore('qrGeneration', {
      * @private
      */
     async _reconcile(generations) {
-      const toast = useToast()
-      const { get } = useAPI()
-      const fetchedIds = new Set(generations.map(g => g.batch_id))
+      // Single-flight: never let two reconciles interleave across an await.
+      if (_reconciling) return
+      _reconciling = true
+      try {
+        const toast = useToast()
+        const { get } = useAPI()
+        const fetchedIds = new Set(generations.map(g => g.batch_id))
 
-      // Update / add batches
-      for (const gen of generations) {
-        this.activeBatches[gen.batch_id] = gen
+        // Update / add batches
+        for (const gen of generations) {
+          this.activeBatches[gen.batch_id] = gen
 
-        // If transitioning to terminal status (or already terminal but not notified), trigger toast
-        if (TERMINAL_STATUSES.has(gen.status) && !this.notifiedBatchIds[gen.batch_id]) {
-          this._notifyCompletion(gen, toast)
-          this.notifiedBatchIds[gen.batch_id] = true
+          // If transitioning to terminal status (or already terminal but not notified), trigger toast
+          if (TERMINAL_STATUSES.has(gen.status) && !this.notifiedBatchIds[gen.batch_id]) {
+            this._notifyCompletion(gen, toast)
+            this.notifiedBatchIds[gen.batch_id] = true
+          }
         }
-      }
 
-      // Remove batches that are no longer in the active list.
-      // If a batch was in-progress last tick and is gone now, the backend has filtered it out
-      // because it reached a terminal state. Notify the user if we haven't already.
-      for (const id of Object.keys(this.activeBatches)) {
-        if (!fetchedIds.has(id)) {
-          if (!this.notifiedBatchIds[id]) {
-            // The batch left the in-progress list — confirm its actual terminal
-            // state before notifying (it may have FAILED, not completed).
-            const lastKnown = this.activeBatches[id]
-            let finalStatus = 'completed'
-            try {
-              const statusResp = await get(`/tenant/qr-batches/${id}/generation-status`)
-              if (statusResp?.success && statusResp.data?.status) {
-                finalStatus = statusResp.data.status
-              }
-            } catch (e) { /* keep optimistic default */ }
+        // Remove batches that are no longer in the active list.
+        for (const id of Object.keys(this.activeBatches)) {
+          if (fetchedIds.has(id)) continue
+
+          // Already notified while still present — safe to drop.
+          if (this.notifiedBatchIds[id]) {
+            delete this.activeBatches[id]
+            continue
+          }
+
+          // The batch left the in-progress list. Confirm its ACTUAL terminal state
+          // before notifying/removing. Do NOT assume "completed": the status GET may
+          // fail transiently, or the batch may merely be absent from a truncated
+          // active list while still processing. Only a confirmed terminal status
+          // triggers the toast + removal; otherwise leave it for a later tick so we
+          // neither emit a false "ready" toast nor drop/suppress a real completion.
+          const lastKnown = this.activeBatches[id]
+          let finalStatus = null
+          try {
+            const statusResp = await get(`/tenant/qr-batches/${id}/generation-status`)
+            if (statusResp?.success && statusResp.data?.status) {
+              finalStatus = statusResp.data.status
+            }
+          } catch (e) { /* transient — re-check next tick */ }
+
+          if (finalStatus && TERMINAL_STATUSES.has(finalStatus)) {
             this._notifyCompletion({ ...lastKnown, status: finalStatus }, toast)
             this.notifiedBatchIds[id] = true
+            delete this.activeBatches[id]
           }
-          delete this.activeBatches[id]
         }
-      }
 
-      // Stop polling if no more active batches
-      if (Object.keys(this.activeBatches).length === 0) {
-        this.stopPolling()
+        // Stop polling if no more active batches
+        if (Object.keys(this.activeBatches).length === 0) {
+          this.stopPolling()
+        }
+      } finally {
+        _reconciling = false
       }
     },
 

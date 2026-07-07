@@ -101,7 +101,14 @@ func main() {
 	// Connect to Redis
 	redisClient, err := database.ConnectRedis(cfg)
 	if err != nil {
-		logger.Warn("Failed to connect to Redis", "error", err)
+		// Redis backs rate limiting AND account lockout. If it is unavailable both
+		// brute-force defenses silently fail open (RateLimiter/lockout short-circuit
+		// to allow), so in production we refuse to boot rather than run unprotected.
+		// In development we tolerate a missing Redis for convenience.
+		if cfg.IsProduction() {
+			logger.Fatal("Failed to connect to Redis (required in production for rate limiting and account lockout)", "error", err)
+		}
+		logger.Warn("Failed to connect to Redis — rate limiting and account lockout are DISABLED (development only)", "error", err)
 	}
 
 	// Initialize QR generation queue, worker pool, and scanner

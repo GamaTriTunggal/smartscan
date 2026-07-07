@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,15 @@ import (
 type SocialMediaHandler struct {
 	DB  *gorm.DB
 	Cfg *config.Config
+}
+
+// isSafeIconValue rejects platform icon values containing HTML/attribute-significant
+// characters. The icon is either a platform-code reference or bare SVG path data,
+// neither of which needs <, >, ", ', or &. This is defense-in-depth against stored
+// XSS: the frontend already renders icons from a trusted static map, but blocking
+// poisoned values at write time keeps the master-data table clean regardless.
+func isSafeIconValue(icon string) bool {
+	return !strings.ContainsAny(icon, "<>\"'&")
 }
 
 func NewSocialMediaHandler(db *gorm.DB, cfg *config.Config) *SocialMediaHandler {
@@ -100,6 +110,11 @@ func (h *SocialMediaHandler) CreateSocialMediaPlatform(c *gin.Context) {
 		return
 	}
 
+	if !isSafeIconValue(req.Icon) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid icon value", nil)
+		return
+	}
+
 	// Check for duplicate code
 	var existing models.SocialMediaPlatform
 	if err := h.DB.Unscoped().Where("code = ?", req.Code).First(&existing).Error; err == nil {
@@ -154,6 +169,11 @@ func (h *SocialMediaHandler) UpdateSocialMediaPlatform(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request", err)
+		return
+	}
+
+	if !isSafeIconValue(req.Icon) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid icon value", nil)
 		return
 	}
 

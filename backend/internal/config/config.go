@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,6 +28,18 @@ type Config struct {
 	UploadPath          string
 	FrontendURL         string
 	ScanSignatureSecret string // HMAC secret for scan URL signature verification
+	// TrustedProxies is the list of proxy CIDRs/IPs Gin will trust when deriving
+	// the client IP from X-Forwarded-For / X-Real-IP. Empty means trust NONE (the
+	// app is exposed directly, so ClientIP() uses the real socket RemoteAddr and
+	// the header is ignored). This prevents rate-limit keys from being spoofed via
+	// a forged X-Forwarded-For header. Configure via TRUSTED_PROXIES (comma-separated)
+	// to the CIDR of your reverse proxy when deployed behind one.
+	TrustedProxies []string
+}
+
+// IsProduction reports whether the app is running in a production-like environment.
+func (c *Config) IsProduction() bool {
+	return c.AppEnv == "production" || c.AppEnv == "prod"
 }
 
 // R2Config holds configuration for Cloudflare R2 storage
@@ -165,7 +178,28 @@ func Load() *Config {
 		UploadPath:          getEnv("UPLOAD_PATH", "./uploads"),
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
 		ScanSignatureSecret: getScanSignatureSecret(),
+		TrustedProxies:      getEnvList("TRUSTED_PROXIES"),
 	}
+}
+
+// getEnvList parses a comma-separated env var into a trimmed, non-empty slice.
+// Returns nil when unset/empty.
+func getEnvList(key string) []string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func getEnv(key, defaultValue string) string {

@@ -21,6 +21,16 @@ type ImageUploadOptions struct {
 	AllowedTypes []string // Allowed MIME types
 }
 
+// MaxImagePixels caps the total decoded pixel count (width*height) accepted for
+// an upload, guarding against decompression bombs: a small, highly-compressible
+// image can declare enormous dimensions that would allocate gigabytes when
+// decoded (width*height*4 bytes). 40 megapixels comfortably covers legitimate
+// photography while keeping the worst-case allocation bounded (~160 MB).
+const MaxImagePixels = 40_000_000
+
+// MaxImageDimension caps either side of an uploaded image.
+const MaxImageDimension = 12000
+
 // ProcessedImage contains the cleaned/validated image data
 type ProcessedImage struct {
 	Data        []byte // Clean, re-encoded image data (metadata stripped)
@@ -70,6 +80,23 @@ func ProcessUploadedImage(file multipart.File, header *multipart.FileHeader, opt
 	// 4. Validate magic bytes match claimed content type
 	if !ValidateMagicBytes(imgData, contentType) {
 		return nil, errors.New("file content does not match declared image type")
+	}
+
+	// 4b. Decompression-bomb guard: read ONLY the image header (DecodeConfig does
+	// not allocate the pixel buffer) and reject oversized dimensions BEFORE the
+	// full decode in ReencodeImage. Without this a ~500KB solid-color PNG could
+	// declare 25000x25000 and force a multi-GB allocation, OOM-killing the process.
+	if cfg, _, cfgErr := image.DecodeConfig(bytes.NewReader(imgData)); cfgErr == nil {
+		if cfg.Width <= 0 || cfg.Height <= 0 {
+			return nil, errors.New("invalid image dimensions")
+		}
+		if cfg.Width > MaxImageDimension || cfg.Height > MaxImageDimension ||
+			int64(cfg.Width)*int64(cfg.Height) > MaxImagePixels {
+			return nil, fmt.Errorf("image dimensions too large (max %d x %d and %d total pixels)",
+				MaxImageDimension, MaxImageDimension, MaxImagePixels)
+		}
+	} else {
+		return nil, fmt.Errorf("failed to read image header: %w", cfgErr)
 	}
 
 	// 5. Re-encode image to strip metadata (EXIF, XMP, etc.)

@@ -20,19 +20,25 @@ func NewAuditLogHandler(db *gorm.DB, cfg *config.Config) *AuditLogHandler {
 	return &AuditLogHandler{DB: db, Cfg: cfg}
 }
 
-// ListAuditLogs returns paginated audit logs with filters (Super Admin only)
+// ListAuditLogs returns paginated audit logs with filters for the caller's tenant.
 // GET /api/v1/tenant/audit-logs
 func (h *AuditLogHandler) ListAuditLogs(c *gin.Context) {
+	// Tenant isolation: audit logs must never cross tenant boundaries. Derive the
+	// tenant from the authenticated context and scope every query to it — the
+	// client-supplied tenant_id filter is intentionally ignored.
+	tenantUUID, ok := utils.GetTenantUUID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusForbidden, "Tenant context required", nil)
+		return
+	}
+
 	page := utils.GetPageQuery(c)
 	limit := utils.GetLimitQuery(c, 20)
 	offset := (page - 1) * limit
 
-	query := h.DB.Model(&models.ActivityLog{})
+	query := h.DB.Model(&models.ActivityLog{}).Where("tenant_id = ?", tenantUUID)
 
 	// Filters
-	if tenantID := c.Query("tenant_id"); tenantID != "" {
-		query = query.Where("tenant_id = ?", tenantID)
-	}
 	if userID := c.Query("user_id"); userID != "" {
 		query = query.Where("user_id = ?", userID)
 	}
@@ -97,6 +103,13 @@ func (h *AuditLogHandler) ListAuditLogs(c *gin.Context) {
 // GetAuditLogStats returns aggregated audit log statistics for the visual dashboard
 // GET /api/v1/tenant/audit-logs/stats?period=30d
 func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
+	// Tenant isolation: aggregate only over the caller's own tenant.
+	tenantUUID, ok := utils.GetTenantUUID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusForbidden, "Tenant context required", nil)
+		return
+	}
+
 	// Parse period
 	period := c.DefaultQuery("period", "30d")
 	days := 30
@@ -120,7 +133,7 @@ func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
 		UniqueIPs      int64
 	}
 	var summary SummaryRow
-	h.DB.Model(&models.ActivityLog{}).Where("created_at >= ?", cutoff).
+	h.DB.Model(&models.ActivityLog{}).Where("tenant_id = ?", tenantUUID).Where("created_at >= ?", cutoff).
 		Select(`COUNT(*) AS total_events,
 			COUNT(*) FILTER (WHERE action_type IN ('delete','password_reset','export')) AS security_events,
 			COUNT(DISTINCT user_id) AS unique_users,
@@ -133,7 +146,7 @@ func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
 		Count      int64  `json:"count"`
 	}
 	var byAction []ActionCount
-	h.DB.Model(&models.ActivityLog{}).Where("created_at >= ?", cutoff).
+	h.DB.Model(&models.ActivityLog{}).Where("tenant_id = ?", tenantUUID).Where("created_at >= ?", cutoff).
 		Select("action_type, COUNT(*) as count").
 		Group("action_type").
 		Order("count DESC").
@@ -145,7 +158,7 @@ func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
 		Count      int64  `json:"count"`
 	}
 	var byEntity []EntityCount
-	h.DB.Model(&models.ActivityLog{}).Where("created_at >= ?", cutoff).
+	h.DB.Model(&models.ActivityLog{}).Where("tenant_id = ?", tenantUUID).Where("created_at >= ?", cutoff).
 		Select("entity_type, COUNT(*) as count").
 		Group("entity_type").
 		Order("count DESC").
@@ -158,7 +171,7 @@ func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
 		Count int64  `json:"count"`
 	}
 	var dailyTrend []DailyCount
-	h.DB.Model(&models.ActivityLog{}).Where("created_at >= ?", cutoff).
+	h.DB.Model(&models.ActivityLog{}).Where("tenant_id = ?", tenantUUID).Where("created_at >= ?", cutoff).
 		Select("TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as count").
 		Group("date").
 		Order("date ASC").
@@ -174,6 +187,7 @@ func (h *AuditLogHandler) GetAuditLogStats(c *gin.Context) {
 	h.DB.Model(&models.ActivityLog{}).
 		Select("activity_logs.user_id, users.email, COUNT(*) as event_count").
 		Joins("JOIN users ON users.id = activity_logs.user_id").
+		Where("activity_logs.tenant_id = ?", tenantUUID).
 		Where("activity_logs.created_at >= ?", cutoff).
 		Where("activity_logs.user_id IS NOT NULL").
 		Group("activity_logs.user_id, users.email").

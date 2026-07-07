@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -37,12 +38,25 @@ func NewCompanyContactHandler(db *gorm.DB, cfg *config.Config) *CompanyContactHa
 	return &CompanyContactHandler{DB: db, Cfg: cfg}
 }
 
+// loadCompanyContact loads the contact for the globally-oldest tenant. Used only
+// by the public endpoint, which has no tenant context (single-brand consumer pages).
 func loadCompanyContact(db *gorm.DB) (CompanyContact, string) {
+	var tenant models.Tenant
+	if err := db.Select("id, company_name").Order("created_at ASC").First(&tenant).Error; err != nil {
+		return CompanyContact{}, ""
+	}
+	return loadCompanyContactForTenant(db, tenant.ID)
+}
+
+// loadCompanyContactForTenant loads the contact for a specific tenant. Used by the
+// authenticated admin endpoint so the settings form always reflects the caller's
+// own tenant (and round-trips consistently with Update).
+func loadCompanyContactForTenant(db *gorm.DB, tenantID uuid.UUID) (CompanyContact, string) {
 	var contact CompanyContact
 	companyName := ""
 
 	var tenant models.Tenant
-	if err := db.Select("id, company_name").Order("created_at ASC").First(&tenant).Error; err != nil {
+	if err := db.Select("id, company_name").Where("id = ?", tenantID).First(&tenant).Error; err != nil {
 		return contact, companyName
 	}
 	companyName = tenant.CompanyName
@@ -68,10 +82,15 @@ func (h *CompanyContactHandler) GetPublic(c *gin.Context) {
 	})
 }
 
-// Get returns the contact settings for the admin UI.
+// Get returns the contact settings for the admin UI, scoped to the caller's tenant.
 // GET /tenant/company-contact
 func (h *CompanyContactHandler) Get(c *gin.Context) {
-	contact, companyName := loadCompanyContact(h.DB)
+	tenantUUID, ok := utils.GetTenantUUID(c)
+	if !ok {
+		utils.ErrorResponse(c, http.StatusForbidden, "Invalid tenant context", nil)
+		return
+	}
+	contact, companyName := loadCompanyContactForTenant(h.DB, tenantUUID)
 	utils.SuccessResponse(c, http.StatusOK, "Company contact", gin.H{
 		"company_name": companyName,
 		"contact":      contact,

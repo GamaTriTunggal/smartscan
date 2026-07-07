@@ -293,10 +293,11 @@ const maxPurchaseDate = computed(() => {
   return new Date().toISOString().split('T')[0]
 })
 
-// Warranty status helpers
+// Warranty status helpers. Uses the top-level (non-PII) warranty_expiry the public
+// endpoint returns — registrant PII is no longer exposed publicly.
 const isWarrantyActive = computed(() => {
-  if (!productData.value?.warranty_activation?.warranty_expiry_date) return false
-  return new Date(productData.value.warranty_activation.warranty_expiry_date) > new Date()
+  if (!productData.value?.warranty_expiry) return false
+  return new Date(productData.value.warranty_expiry) > new Date()
 })
 
 const printCertificate = () => {
@@ -454,6 +455,33 @@ watch(uuid, async (newVal, oldVal) => {
         </div>
         <h1 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Warranty Registered!</h1>
         <p class="text-gray-600 dark:text-gray-400 mb-4">Your warranty has been successfully registered.</p>
+
+        <!-- Personalized confirmation built entirely from the buyer's own submitted
+             data (local to this session) — safe to show since it is never fetched
+             from, nor exposed by, the public API. -->
+        <div class="text-left border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 space-y-2 text-sm">
+          <div class="flex justify-between gap-3">
+            <span class="text-gray-500 dark:text-gray-400">Customer</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ formData.customer_name }}</span>
+          </div>
+          <div class="flex justify-between gap-3">
+            <span class="text-gray-500 dark:text-gray-400">Product</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ productData?.product?.product_name || '-' }}</span>
+          </div>
+          <div v-if="formData.purchase_store" class="flex justify-between gap-3">
+            <span class="text-gray-500 dark:text-gray-400">Purchase Store</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ formData.purchase_store }}</span>
+          </div>
+          <div v-if="formData.purchase_date" class="flex justify-between gap-3">
+            <span class="text-gray-500 dark:text-gray-400">Purchase Date</span>
+            <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(formData.purchase_date) }}</span>
+          </div>
+          <div v-if="registrationResult?.warranty_expiry_date" class="flex justify-between gap-3">
+            <span class="text-gray-500 dark:text-gray-400">Valid Until</span>
+            <span class="font-medium text-green-600 dark:text-green-400">{{ formatDate(registrationResult.warranty_expiry_date) }}</span>
+          </div>
+        </div>
+
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
           A confirmation email has been sent to {{ formData.email }}
         </p>
@@ -511,24 +539,12 @@ watch(uuid, async (newVal, oldVal) => {
               </div>
 
               <!-- Certificate Body -->
+              <!-- Public status only: registrant PII (name, store, purchase date) is
+                   intentionally not shown here, since anyone who scans this product's
+                   QR code reaches this page. The buyer sees their own details on the
+                   confirmation screen right after registering. -->
               <div class="px-5 py-4 space-y-3">
                 <div class="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Customer</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ productData.warranty_activation?.customer_name || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Purchase Store</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ productData.warranty_activation?.purchase_store || '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Purchase Date</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ productData.warranty_activation?.purchase_date ? formatDate(productData.warranty_activation.purchase_date) : '-' }}</p>
-                  </div>
-                  <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Registered On</p>
-                    <p class="font-medium text-gray-900 dark:text-white">{{ productData.warranty_activation?.activated_at ? formatDate(productData.warranty_activation.activated_at) : '-' }}</p>
-                  </div>
                   <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Warranty Period</p>
                     <p class="font-medium text-gray-900 dark:text-white">{{ productData.warranty_months }} months</p>
@@ -536,7 +552,7 @@ watch(uuid, async (newVal, oldVal) => {
                   <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Expiry Date</p>
                     <p :class="['font-medium', isWarrantyActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400']">
-                      {{ productData.warranty_activation?.warranty_expiry_date ? formatDate(productData.warranty_activation.warranty_expiry_date) : '-' }}
+                      {{ productData.warranty_expiry ? formatDate(productData.warranty_expiry) : '-' }}
                     </p>
                   </div>
                 </div>

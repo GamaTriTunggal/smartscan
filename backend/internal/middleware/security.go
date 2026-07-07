@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -100,17 +101,22 @@ func CSRFProtection(allowedOrigins []string) gin.HandlerFunc {
 			return
 		}
 
-		// If no Origin, check Referer
+		// If no Origin, check Referer. Compare the Referer's ORIGIN (scheme+host+port)
+		// against the allow-list exactly. A naive prefix match would accept an
+		// attacker domain that merely starts with an allowed origin, e.g.
+		// "https://app.example.com.evil.com/..." for allowed "https://app.example.com".
 		referer := c.GetHeader("Referer")
 		if referer != "" {
-			for _, allowed := range allowedOrigins {
-				// Check if referer starts with allowed origin
-				if len(referer) >= len(allowed) && referer[:len(allowed)] == allowed {
-					c.Next()
-					return
+			if u, err := url.Parse(referer); err == nil && u.Scheme != "" && u.Host != "" {
+				refOrigin := u.Scheme + "://" + u.Host
+				for _, allowed := range allowedOrigins {
+					if refOrigin == allowed {
+						c.Next()
+						return
+					}
 				}
 			}
-			// Referer present but not allowed
+			// Referer present but not an allowed origin
 			c.Header("X-CSRF-Error", "Invalid referer")
 			c.AbortWithStatus(http.StatusForbidden)
 			return

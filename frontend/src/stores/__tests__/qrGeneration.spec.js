@@ -177,19 +177,38 @@ describe('QRGeneration Store', () => {
       expect(mockToastError.mock.calls[0][0]).toContain('Retry')
     })
 
-    it('notifies completion when a batch disappears from active list (missed terminal poll)', async () => {
+    it('notifies completion when a batch disappears and its status confirms terminal', async () => {
       const store = useQRGenerationStore()
       const processing = buildGeneration({ status: 'processing' })
       mockGet.mockResolvedValueOnce(mockGenResponse([processing]))
       await store.fetchActive()
 
-      // Batch disappears (backend filtered it out because it's now terminal)
+      // Batch disappears from the active list; reconcile confirms the real terminal
+      // state via the per-batch generation-status endpoint before notifying.
       mockGet.mockResolvedValueOnce(mockGenResponse([]))
+      mockGet.mockResolvedValueOnce({ success: true, data: { status: 'completed' } })
       await store.fetchActive()
 
-      // Should still fire a success toast even though we never saw the terminal status directly
       expect(mockToastSuccess).toHaveBeenCalledTimes(1)
       expect(store.activeBatches[processing.batch_id]).toBeUndefined()
+    })
+
+    it('does NOT fire a false completion toast when the status check fails or is non-terminal', async () => {
+      const store = useQRGenerationStore()
+      const processing = buildGeneration({ status: 'processing' })
+      mockGet.mockResolvedValueOnce(mockGenResponse([processing]))
+      await store.fetchActive()
+
+      // Batch temporarily absent from the (possibly truncated) active list, and the
+      // status GET fails transiently — the store must NOT assume completion.
+      mockGet.mockResolvedValueOnce(mockGenResponse([]))
+      mockGet.mockRejectedValueOnce(new Error('network'))
+      await store.fetchActive()
+
+      expect(mockToastSuccess).not.toHaveBeenCalled()
+      expect(mockToastError).not.toHaveBeenCalled()
+      // Batch retained for a later re-check rather than dropped with a false toast.
+      expect(store.activeBatches[processing.batch_id]).toBeDefined()
     })
 
     it('does not fire duplicate toasts for the same batch', async () => {
@@ -217,8 +236,9 @@ describe('QRGeneration Store', () => {
       store.startPolling()
       expect(store.isPolling).toBe(true)
 
-      // Second poll: no active batches
+      // Second poll: no active batches; reconcile confirms the batch is terminal.
       mockGet.mockResolvedValueOnce(mockGenResponse([]))
+      mockGet.mockResolvedValueOnce({ success: true, data: { status: 'completed' } })
       await store.fetchActive()
 
       expect(store.isPolling).toBe(false)

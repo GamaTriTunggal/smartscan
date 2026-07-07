@@ -204,18 +204,14 @@ function getAccountUrl(account) {
   return '#'
 }
 
-function getPlatformIcon(platform) {
+// Resolve the icon to a TRUSTED SVG path (bound via :d on a <path>). We must NOT
+// interpolate the DB-provided platform.icon into HTML for v-html: platform rows
+// are global master data writable by any tenant admin, and a raw value with a `"`
+// or SVG SMIL handler would be a stored-XSS vector. Only the static, code-keyed
+// map is trusted.
+function getPlatformIconPath(platform) {
   if (!platform?.code) return null
-
-  // Check if icon looks like SVG path (contains space)
-  if (platform.icon && platform.icon.includes(' ')) {
-    return `<path d="${platform.icon}" />`
-  }
-
-  // Fallback to shared icon map
-  const code = (platform.code || platform.icon || '').toUpperCase()
-  const path = SOCIAL_ICON_PATHS[code]
-  return path ? `<path d="${path}" />` : null
+  return SOCIAL_ICON_PATHS[platform.code.toUpperCase()] || null
 }
 
 onMounted(() => {
@@ -293,12 +289,11 @@ watch(() => props.productId, () => {
         <!-- Platform icon -->
         <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
           <svg
-            v-if="getPlatformIcon(link.social_account?.platform)"
+            v-if="getPlatformIconPath(link.social_account?.platform)"
             class="w-5 h-5 text-gray-600 dark:text-gray-300"
             viewBox="0 0 24 24"
             fill="currentColor"
-            v-html="getPlatformIcon(link.social_account?.platform)"
-          ></svg>
+          ><path :d="getPlatformIconPath(link.social_account?.platform)" /></svg>
           <LinkIcon v-else class="w-5 h-5 text-gray-400" />
         </div>
 

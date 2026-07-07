@@ -306,11 +306,17 @@ router.beforeEach(async (to, _from, next) => {
 
   // Protected routes
   if (to.meta.requiresAuth) {
-    // Check if token is expired (safety net - initFromStorage should have cleared this)
+    // Access token expired: attempt a silent refresh before giving up. The refresh
+    // token (HttpOnly cookie) typically outlives the access token by days, so the
+    // session can be renewed transparently — the same thing the API interceptor
+    // does on a 401. Only log out if the refresh itself fails.
     if (authStore.isTokenExpired) {
-      await authStore.logout()
-      next('/login')
-      return
+      const refreshed = await authStore.refresh()
+      if (!refreshed) {
+        await authStore.logout()
+        next('/login')
+        return
+      }
     }
 
     if (!authStore.isAuthenticated) {

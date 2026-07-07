@@ -80,6 +80,27 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
 
+  // Attempt a silent session refresh using the HttpOnly refresh cookie. Returns
+  // true if the access token was renewed. Used by the router guard so an expired
+  // access token does not force a logout while a valid (multi-day) refresh token
+  // could transparently renew the session — matching the API interceptor's behavior.
+  async function refresh() {
+    const { post } = useAPI()
+    try {
+      const response = await post('/auth/refresh', {})
+      if (response.success) {
+        setAuthenticated(true)
+        if (response.data?.expires_in) {
+          setTokenExpiry(response.data.expires_in)
+        }
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
   async function fetchUser() {
     if (!authenticated.value) return false
 
@@ -246,6 +267,7 @@ export const useAuthStore = defineStore('auth', () => {
     setTokenExpiry,
     login,
     fetchUser,
+    refresh,
     logout,
     changePassword,
     initFromStorage,

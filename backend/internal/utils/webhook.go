@@ -91,7 +91,10 @@ func SendWebhook(db *gorm.DB, tenantID uuid.UUID, event string, payload map[stri
 		req.Header.Set("X-Smartscan-Event", event)
 		req.Header.Set("X-Smartscan-Signature", "sha256="+signature)
 
-		client := &http.Client{Timeout: 5 * time.Second}
+		// SSRF-safe client: the webhook URL is tenant-controlled, so connections to
+		// internal/loopback/link-local/private addresses (incl. cloud metadata) are
+		// refused at dial time, defeating DNS-rebinding and redirect-based bypasses.
+		client := SafeHTTPClient(5 * time.Second)
 		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("[WEBHOOK] delivery failed for event %s: %v", event, err)

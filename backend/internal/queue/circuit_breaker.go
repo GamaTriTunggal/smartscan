@@ -23,6 +23,7 @@ type CircuitBreaker struct {
 	successes   int
 	lastFailure time.Time
 	lastSuccess time.Time
+	lastProbeAt time.Time // when the most recent half-open probe slot was handed out
 
 	// Configuration
 	failureThreshold int           // Number of failures to open circuit
@@ -88,16 +89,28 @@ func (cb *CircuitBreaker) Allow() bool {
 		// Check if timeout has passed to transition to half-open
 		if time.Since(cb.lastFailure) > cb.timeout {
 			cb.state = CircuitHalfOpen
-			cb.halfOpenCalls = 0
+			cb.halfOpenCalls = 1 // this call consumes the first probe slot
 			cb.successes = 0
+			cb.lastProbeAt = time.Now()
 			return true
 		}
 		return false
 
 	case CircuitHalfOpen:
+		// Self-heal against leaked probe slots: a caller that received a probe
+		// token but returned without RecordSuccess/RecordFailure (e.g. an empty
+		// queue poll or a transient dequeue error) would otherwise leave
+		// halfOpenCalls pinned at the max forever, wedging the breaker in
+		// half-open and permanently blocking recovery. If the outstanding probe
+		// has not resolved within the timeout window, reclaim the slot so a fresh
+		// probe can proceed.
+		if cb.halfOpenCalls >= cb.halfOpenMaxCalls && time.Since(cb.lastProbeAt) > cb.timeout {
+			cb.halfOpenCalls = 0
+		}
 		// Allow limited calls in half-open state
 		if cb.halfOpenCalls < cb.halfOpenMaxCalls {
 			cb.halfOpenCalls++
+			cb.lastProbeAt = time.Now()
 			return true
 		}
 		return false
@@ -116,7 +129,9 @@ func (cb *CircuitBreaker) RecordSuccess() {
 	switch cb.state {
 	case CircuitHalfOpen:
 		cb.successes++
-		cb.halfOpenCalls--
+		if cb.halfOpenCalls > 0 {
+			cb.halfOpenCalls--
+		}
 		// If enough successes, close the circuit
 		if cb.successes >= cb.successThreshold {
 			cb.state = CircuitClosed

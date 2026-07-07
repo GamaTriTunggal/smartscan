@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -129,26 +130,43 @@ func (h *ScanningHandler) checkCounterfeitThreshold(tenantID uuid.UUID, qrCodeID
 	return int(currentCount) >= maxCount, int(currentCount), maxCount
 }
 
+// isUniqueViolation reports whether a DB error is a unique-constraint violation.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "SQLSTATE 23505") ||
+		strings.Contains(msg, "uniq_counterfeit_detection_active")
+}
+
+// accumulateCounterfeitDetection folds a triggering interaction into an existing
+// active detection (increments the count, records the interaction id, bumps the
+// timestamp). Best-effort — logs on failure.
+func accumulateCounterfeitDetection(db *gorm.DB, existing *models.CounterfeitDetection, interactionID uuid.UUID) {
+	now := time.Now().UTC()
+	ids := []string{}
+	if len(existing.InteractionIDs) > 0 {
+		_ = json.Unmarshal(existing.InteractionIDs, &ids)
+	}
+	ids = append(ids, interactionID.String())
+	idsJSON, _ := json.Marshal(ids)
+	if err := db.Model(existing).Updates(map[string]interface{}{
+		"total_interactions_count": existing.TotalInteractionsCount + 1,
+		"last_interaction_at":      now,
+		"interaction_ids":          datatypes.JSON(idsJSON),
+	}).Error; err != nil {
+		fmt.Printf("[COUNTERFEIT] Failed to update detection count for QR %s: %v\n", existing.QRCodeID, err)
+	}
+}
+
 // createCounterfeitDetection creates a counterfeit detection record
 func createCounterfeitDetection(db *gorm.DB, tenantID, qrCodeID uuid.UUID, reason string, interactionID uuid.UUID) {
 	// Check if detection already exists
 	var existing models.CounterfeitDetection
 	if err := db.Where("qr_code_id = ? AND status = ?", qrCodeID, "active").First(&existing).Error; err == nil {
-		// Update existing — accumulate the triggering interaction id.
-		now := time.Now().UTC()
-		ids := []string{}
-		if len(existing.InteractionIDs) > 0 {
-			_ = json.Unmarshal(existing.InteractionIDs, &ids)
-		}
-		ids = append(ids, interactionID.String())
-		idsJSON, _ := json.Marshal(ids)
-		if err := db.Model(&existing).Updates(map[string]interface{}{
-			"total_interactions_count": existing.TotalInteractionsCount + 1,
-			"last_interaction_at":      now,
-			"interaction_ids":          datatypes.JSON(idsJSON),
-		}).Error; err != nil {
-			fmt.Printf("[COUNTERFEIT] Failed to update detection count for QR %s: %v\n", qrCodeID, err)
-		}
+		accumulateCounterfeitDetection(db, &existing, interactionID)
 		return
 	}
 
@@ -165,7 +183,20 @@ func createCounterfeitDetection(db *gorm.DB, tenantID, qrCodeID uuid.UUID, reaso
 		InteractionIDs:         datatypes.JSON(idsJSON),
 		Status:                 "active",
 	}
-	db.Create(&detection)
+	if err := db.Create(&detection).Error; err != nil {
+		// Lost the check-then-create race: another concurrent scan already inserted
+		// the active detection (blocked by uniq_counterfeit_detection_active). Fall
+		// back to accumulating into that existing row so no scan is dropped and no
+		// duplicate active detection is created.
+		if isUniqueViolation(err) {
+			if err := db.Where("qr_code_id = ? AND status = ?", qrCodeID, "active").First(&existing).Error; err == nil {
+				accumulateCounterfeitDetection(db, &existing, interactionID)
+			}
+			return
+		}
+		fmt.Printf("[COUNTERFEIT] Failed to create detection for QR %s: %v\n", qrCodeID, err)
+		return
+	}
 
 	// Queue counterfeit alert notification for tenant admin
 	var qrCode models.QRCode
@@ -264,8 +295,12 @@ func (h *ScanningHandler) QCScan(c *gin.Context) {
 		return
 	}
 
-	// Verify QR belongs to tenant (Batch is nil if the batch was soft-deleted)
-	if qrCode.Batch == nil || qrCode.Batch.TenantID != tenantUUID {
+	// Verify QR belongs to tenant AND its batch is not soft-deleted. QRBatch.DeletedAt
+	// is a plain *time.Time (not gorm.DeletedAt), so Preload still returns soft-deleted
+	// batches as non-nil — they must be rejected explicitly, matching the public
+	// validation paths (validation.go). Recording scans against a deleted batch
+	// corrupts analytics and blocks the batch from being re-deleted after restore.
+	if qrCode.Batch == nil || qrCode.Batch.DeletedAt != nil || qrCode.Batch.TenantID != tenantUUID {
 		utils.ErrorResponse(c, http.StatusForbidden, "QR code does not belong to this tenant", nil)
 		return
 	}
@@ -507,8 +542,12 @@ func (h *ScanningHandler) WarehouseScan(c *gin.Context) {
 		return
 	}
 
-	// Verify QR belongs to tenant (Batch is nil if the batch was soft-deleted)
-	if qrCode.Batch == nil || qrCode.Batch.TenantID != tenantUUID {
+	// Verify QR belongs to tenant AND its batch is not soft-deleted. QRBatch.DeletedAt
+	// is a plain *time.Time (not gorm.DeletedAt), so Preload still returns soft-deleted
+	// batches as non-nil — they must be rejected explicitly, matching the public
+	// validation paths (validation.go). Recording scans against a deleted batch
+	// corrupts analytics and blocks the batch from being re-deleted after restore.
+	if qrCode.Batch == nil || qrCode.Batch.DeletedAt != nil || qrCode.Batch.TenantID != tenantUUID {
 		utils.ErrorResponse(c, http.StatusForbidden, "QR code does not belong to this tenant", nil)
 		return
 	}

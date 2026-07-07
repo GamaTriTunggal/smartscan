@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/gin-contrib/cors"
@@ -20,6 +21,14 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	}
 
 	r := gin.Default()
+
+	// Constrain proxy trust so c.ClientIP() (used for rate-limit keys) cannot be
+	// spoofed via a forged X-Forwarded-For header. By default (empty list) NO
+	// proxy is trusted and ClientIP() falls back to the real socket address.
+	// When deployed behind a reverse proxy, set TRUSTED_PROXIES to its CIDR.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Fatalf("Failed to set trusted proxies: %v", err)
+	}
 
 	// Set maximum multipart memory (10MB) for file uploads
 	r.MaxMultipartMemory = 10 << 20 // 10 MB

@@ -157,8 +157,12 @@ func (h *TenantHandler) ResetTenantStaffPassword(c *gin.Context) {
 		return
 	}
 
-	// Revoke all existing tokens (force re-login)
-	utils.NewTokenBlacklist().RevokeUserTokens(staff.UserID.String(), 168*time.Hour)
+	// Revoke all existing tokens (force re-login). Use the configured refresh
+	// lifetime so the revocation marker always outlives any outstanding refresh
+	// token — a hardcoded TTL shorter than JWT_REFRESH_HOURS would let a stolen
+	// refresh token resume minting access tokens once the marker expired. Matches
+	// the other revocation call sites (auth.go ChangePassword, staff.go).
+	utils.NewTokenBlacklist().RevokeUserTokens(staff.UserID.String(), time.Duration(h.Cfg.JWT.RefreshHours)*time.Hour)
 
 	// The temp password is returned ONCE to the admin, who hands it to the staff
 	// member directly. The staff member must change it on first login.

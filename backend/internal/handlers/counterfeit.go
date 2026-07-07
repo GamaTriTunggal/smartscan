@@ -32,6 +32,27 @@ func NewCounterfeitHandler(db *gorm.DB, cfg *config.Config) *CounterfeitHandler 
 	return &CounterfeitHandler{DB: db, Cfg: cfg}
 }
 
+// clearQRCounterfeitStatusIfResolved sets a QR's counterfeit_status back to
+// "valid" only when no ACTIVE counterfeit detection (other than excludeID, the one
+// being resolved in the same transaction) remains for it. This keeps the QR's flag
+// consistent with its outstanding detections, so resolving one of several active
+// detections cannot mark a still-flagged QR as authentic. Runs on the provided
+// tx so it participates in the caller's transaction.
+func clearQRCounterfeitStatusIfResolved(tx *gorm.DB, qrCodeID, excludeID uuid.UUID) error {
+	var remainingActive int64
+	if err := tx.Model(&models.CounterfeitDetection{}).
+		Where("qr_code_id = ? AND status = ? AND id <> ?",
+			qrCodeID, models.CounterfeitDetectionStatusActive, excludeID).
+		Count(&remainingActive).Error; err != nil {
+		return err
+	}
+	if remainingActive > 0 {
+		return nil
+	}
+	return tx.Model(&models.QRCode{}).Where("id = ?", qrCodeID).
+		Update("counterfeit_status", models.CounterfeitStatusValid).Error
+}
+
 // ListCounterfeitDetections returns counterfeit detections for a tenant
 func (h *CounterfeitHandler) ListCounterfeitDetections(c *gin.Context) {
 	tenantUUID, ok := utils.GetTenantUUID(c)
@@ -242,9 +263,11 @@ func (h *CounterfeitHandler) MarkAsFalsePositive(c *gin.Context) {
 		return
 	}
 
-	// Inline AfterUpdate hook: sync QR code counterfeit_status to "valid"
-	if err := tx.Model(&models.QRCode{}).Where("id = ?", detection.QRCodeID).
-		Update("counterfeit_status", models.CounterfeitStatusValid).Error; err != nil {
+	// Sync QR counterfeit_status back to "valid" ONLY when no other active
+	// detection remains for this QR. Blindly resetting would mark a QR that still
+	// has an outstanding active detection (e.g. a duplicate from a pre-index race)
+	// as authentic while the dashboard still shows it flagged.
+	if err := clearQRCounterfeitStatusIfResolved(tx, detection.QRCodeID, detection.ID); err != nil {
 		tx.Rollback()
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to sync QR code counterfeit status", err)
 		return
@@ -388,9 +411,9 @@ func (h *CounterfeitHandler) OverrideThreshold(c *gin.Context) {
 		return
 	}
 
-	// Reset QR counterfeit_status to valid
-	if err := tx.Model(&models.QRCode{}).Where("id = ?", detection.QRCodeID).
-		Update("counterfeit_status", models.CounterfeitStatusValid).Error; err != nil {
+	// Reset QR counterfeit_status to valid only when no other active detection
+	// remains for this QR (see MarkAsFalsePositive for rationale).
+	if err := clearQRCounterfeitStatusIfResolved(tx, detection.QRCodeID, detection.ID); err != nil {
 		tx.Rollback()
 		utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to reset QR status", err)
 		return

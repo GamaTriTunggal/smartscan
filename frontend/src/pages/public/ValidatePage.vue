@@ -101,11 +101,15 @@ const removeSessionFromURL = () => {
   })
 }
 
-// Send geolocation to backend
+// Send geolocation to backend. The scan-session token (`s`) binds this update to
+// the exact scan interaction so the backend can reject forged location writes.
 const sendLocationToBackend = async (latitude, longitude, accuracy) => {
+  const session = route.query.s
+  if (!session) return // no session => not a scan-flow visit; nothing to update
   try {
     await axios.post(`${apiBase}/public/scan-location`, {
       qr_code: uuid.value,
+      s: session,
       latitude,
       longitude,
       accuracy: Math.round(accuracy)

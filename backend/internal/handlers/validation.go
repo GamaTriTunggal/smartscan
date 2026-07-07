@@ -312,13 +312,28 @@ func (h *ValidationHandler) ScanRedirect(c *gin.Context) {
 		return
 	}
 
-	h.recordDynamicQRScan(c, &qrCode)
+	interactionID := h.recordDynamicQRScan(c, &qrCode)
+
+	// Bind the scan session to the exact interaction just recorded. The later
+	// public scan-location update requires this session and mutates ONLY the
+	// bound interaction, so a third party who merely knows the public code cannot
+	// forge another consumer's scan GPS (nor fabricate velocity/counterfeit alerts).
+	if database.RedisClient != nil && interactionID != uuid.Nil {
+		sessionKey := fmt.Sprintf("scan:sess:%s", sessionID)
+		sessionData := fmt.Sprintf("%s:%d:%s", code, time.Now().Unix(), interactionID.String())
+		if err := database.RedisClient.Set(context.Background(), sessionKey, sessionData, utils.ScanSessionTTL).Err(); err != nil {
+			log.Printf("Failed to bind scan session to interaction: %v", err)
+		}
+	}
+
 	c.Redirect(http.StatusFound, signedRedirect)
 }
 
 
-// recordDynamicQRScan records a scan for dynamic QR with counterfeit detection
-func (h *ValidationHandler) recordDynamicQRScan(c *gin.Context, qrCode *models.QRCode) {
+// recordDynamicQRScan records a scan for dynamic QR with counterfeit detection.
+// Returns the ID of the created interaction (uuid.Nil if creation failed) so the
+// caller can bind the scan session to this exact interaction.
+func (h *ValidationHandler) recordDynamicQRScan(c *gin.Context, qrCode *models.QRCode) uuid.UUID {
 	// Resolve counterfeit threshold via 4-level hierarchy: QR > Batch > Product > Tenant > Default(3)
 	threshold := ResolveCounterfeitThreshold(h.DB, qrCode)
 
@@ -340,7 +355,7 @@ func (h *ValidationHandler) recordDynamicQRScan(c *gin.Context, qrCode *models.Q
 
 	// 0 = disabled, skip counterfeit check (consistent with scanning.go)
 	if threshold == 0 {
-		return
+		return interaction.ID
 	}
 
 	// Count validations AFTER insert to avoid race condition
@@ -381,7 +396,17 @@ func (h *ValidationHandler) recordDynamicQRScan(c *gin.Context, qrCode *models.Q
 				LastInteractionAt:      &now,
 				Status:                 models.CounterfeitDetectionStatusActive,
 			}
-			h.DB.Create(&detection)
+			// On a concurrent-insert race, the partial unique index
+			// (uniq_counterfeit_detection_active) rejects the duplicate; fold the
+			// count into the row the other goroutine created instead.
+			if createErr := h.DB.Create(&detection).Error; createErr != nil && isUniqueViolation(createErr) {
+				if h.DB.Where("qr_code_id = ? AND status = ?", qrCode.ID, "active").First(&existing).Error == nil {
+					h.DB.Model(&existing).Updates(map[string]interface{}{
+						"total_interactions_count": scanCount,
+						"last_interaction_at":      time.Now().UTC(),
+					})
+				}
+			}
 		} else {
 			// Update existing detection with latest scan count
 			now := time.Now().UTC()
@@ -391,6 +416,8 @@ func (h *ValidationHandler) recordDynamicQRScan(c *gin.Context, qrCode *models.Q
 			})
 		}
 	}
+
+	return interaction.ID
 }
 
 // GetValidationInfo returns validation data WITHOUT recording a new interaction
@@ -463,6 +490,32 @@ func (h *ValidationHandler) GetValidationInfo(c *gin.Context) {
 			IsValid:       false,
 			IsCounterfeit: true,
 			Message:       "Invalid QR code - Product not found",
+		})
+		return
+	}
+
+	// Counterfeit-flagged QRs must surface an explicit counterfeit warning to the
+	// consumer. IsScannable() returns false for BOTH admin-disabled and
+	// counterfeit-flagged codes, and recordDynamicQRScan only flips
+	// counterfeit_status (never Status), so without this special-case a
+	// counterfeit-flagged (still Status='active') code would fall through to the
+	// generic "QR code is not active" branch below with IsCounterfeit=false —
+	// hiding the anti-counterfeit warning that is the product's core purpose.
+	if qrCode.CounterfeitStatus == models.CounterfeitStatusCounterfeit {
+		var batchID, qrRef string
+		if qrCode.Batch != nil {
+			batchID = qrCode.Batch.ID.String()
+		}
+		qrRef = qrCode.QRCode
+		utils.SuccessResponse(c, http.StatusOK, "Validation result", ValidationResult{
+			IsValid:           false,
+			IsCounterfeit:     true,
+			CounterfeitStatus: string(models.CounterfeitStatusCounterfeit),
+			Message:           "Warning: This product may be counterfeit. Multiple validation attempts detected.",
+			QRStatus:          string(qrCode.Status),
+			BatchID:           batchID,
+			QRCodeID:          qrCode.ID.String(),
+			QRCodeRef:         qrRef,
 		})
 		return
 	}
@@ -733,14 +786,42 @@ func (h *ValidationHandler) getDynamicQRInfo(c *gin.Context, qrCode *models.QRCo
 // UpdateScanLocationRequest is the request body for updating scan location
 type UpdateScanLocationRequest struct {
 	QRCode    string  `json:"qr_code" binding:"required"`
+	Session   string  `json:"s" binding:"required"` // scan-session token from the redirect (binds to the exact scan)
 	Latitude  float64 `json:"latitude" binding:"required"`
 	Longitude float64 `json:"longitude" binding:"required"`
 	Accuracy  float64 `json:"accuracy"`
 }
 
-// UpdateScanLocation updates the geolocation of the most recent scan interaction
+// resolveScanSessionInteraction validates a scan-session token against the given
+// code and returns the interaction ID it was bound to during the scan redirect.
+// Returns false if the session is missing/expired, the code does not match, or the
+// session predates interaction-binding. This is what ties a scan-location update
+// to the specific scan that produced it, preventing forgery of other users' scans.
+func resolveScanSessionInteraction(sessionID, code string) (uuid.UUID, bool) {
+	if sessionID == "" || database.RedisClient == nil {
+		return uuid.Nil, false
+	}
+	sessionKey := fmt.Sprintf("scan:sess:%s", sessionID)
+	data, err := database.RedisClient.Get(context.Background(), sessionKey).Result()
+	if err != nil || data == "" {
+		return uuid.Nil, false
+	}
+	// Session value: "code:timestamp:interactionID" (QR codes never contain ':').
+	parts := strings.Split(data, ":")
+	if len(parts) < 3 || parts[0] != code {
+		return uuid.Nil, false
+	}
+	iid, err := uuid.Parse(parts[len(parts)-1])
+	if err != nil {
+		return uuid.Nil, false
+	}
+	return iid, true
+}
+
+// UpdateScanLocation attaches the consumer's GPS location to the specific scan
+// interaction identified by the scan session.
 // POST /api/v1/public/scan-location
-// This is called by the frontend after getting user's geolocation permission
+// This is called by the frontend after getting user's geolocation permission.
 func (h *ValidationHandler) UpdateScanLocation(c *gin.Context) {
 	var req UpdateScanLocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -770,21 +851,30 @@ func (h *ValidationHandler) UpdateScanLocation(c *gin.Context) {
 		qrCodeFound = h.DB.First(&qrCode, "qr_uuid = ?", lookup.QRUUID).Error == nil
 	}
 
-	// Find the most recent interaction for this QR code within last 5 minutes
-	// This prevents abuse and ensures we're updating the correct scan
-	cutoffTime := time.Now().Add(-5 * time.Minute)
-	var interaction models.Interaction
-
 	if !qrCodeFound {
 		// QR code not found - silently succeed to not leak info
 		utils.SuccessResponse(c, http.StatusOK, "Location noted", nil)
 		return
 	}
+
+	// Resolve the interaction bound to this scan session. Requiring the session
+	// (minted only in the redirect the actual scanner received) and updating ONLY
+	// its bound interaction prevents anyone who merely knows the public code from
+	// writing a forged GPS location onto another consumer's scan or fabricating
+	// velocity/counterfeit anomalies against the tenant.
+	interactionID, ok := resolveScanSessionInteraction(req.Session, req.QRCode)
+	if !ok {
+		// No valid session — do not record, but don't leak that fact.
+		utils.SuccessResponse(c, http.StatusOK, "Location noted", nil)
+		return
+	}
+
+	var interaction models.Interaction
 	if err := h.DB.Where(
-		"qr_code_id = ? AND interaction_subcategory = ? AND created_at > ? AND geolocation IS NULL",
-		qrCode.ID, models.InteractionSubcategoryProductValidation, cutoffTime,
-	).Order("created_at DESC").First(&interaction).Error; err != nil {
-		// No recent interaction found or already has geolocation - silently succeed
+		"id = ? AND qr_code_id = ? AND geolocation IS NULL",
+		interactionID, qrCode.ID,
+	).First(&interaction).Error; err != nil {
+		// Interaction already geolocated, doesn't match this QR, or gone — no-op.
 		utils.SuccessResponse(c, http.StatusOK, "Location noted", nil)
 		return
 	}
@@ -792,10 +882,8 @@ func (h *ValidationHandler) UpdateScanLocation(c *gin.Context) {
 	// Impossible-travel check — must run BEFORE this interaction's geolocation
 	// is written, so the comparison targets the PREVIOUS geolocated scan.
 	// A clone of this label scanned in another city minutes apart trips this.
-	if qrCodeFound {
-		if exceeded, reason := checkVelocityAnomalyShared(h.DB, interaction.TenantID, qrCode.ID, req.Latitude, req.Longitude); exceeded {
-			go createCounterfeitDetection(h.DB, interaction.TenantID, qrCode.ID, reason, interaction.ID)
-		}
+	if exceeded, reason := checkVelocityAnomalyShared(h.DB, interaction.TenantID, qrCode.ID, req.Latitude, req.Longitude); exceeded {
+		go createCounterfeitDetection(h.DB, interaction.TenantID, qrCode.ID, reason, interaction.ID)
 	}
 
 	// Build geolocation JSON
@@ -817,9 +905,7 @@ func (h *ValidationHandler) UpdateScanLocation(c *gin.Context) {
 	}
 
 	// Geofence check (non-blocking goroutine - never delays consumer response)
-	if qrCodeFound {
-		go checkBatchGeofence(h.DB, h.Cfg, interaction.ID, qrCode.BatchID, qrCode.ID, nil, req.Latitude, req.Longitude, req.Accuracy)
-	}
+	go checkBatchGeofence(h.DB, h.Cfg, interaction.ID, qrCode.BatchID, qrCode.ID, nil, req.Latitude, req.Longitude, req.Accuracy)
 
 	// Reverse geocoding enrichment (non-blocking goroutine - adds city/province/country)
 	if h.Cfg.Geocoding.BigDataCloudAPIKey != "" {

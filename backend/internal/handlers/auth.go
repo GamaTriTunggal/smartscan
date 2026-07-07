@@ -76,7 +76,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Find user
 	var user models.User
 	if err := h.DB.Where("email = ? AND status = ?", req.Email, "active").First(&user).Error; err != nil {
-		// Record failed attempt even for non-existent users (prevent user enumeration)
+		// Account not found (or inactive). Normalize timing with a dummy bcrypt
+		// comparison and record the failed attempt so lockout also applies to
+		// unknown emails. Return the SAME response as the wrong-password branch so
+		// the two cases are indistinguishable (prevents user enumeration — see the
+		// matching branch below).
+		utils.CheckDummyPassword(req.Password)
 		lockout.RecordFailedAttempt(req.Email)
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password", nil)
 		return
@@ -84,15 +89,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Check password
 	if !utils.CheckPassword(req.Password, user.PasswordHash) {
-		// Record failed attempt
-		isLocked, remaining := lockout.RecordFailedAttempt(req.Email)
-		if isLocked {
-			utils.ErrorResponse(c, http.StatusTooManyRequests,
-				fmt.Sprintf("Too many failed attempts. Account locked for %d minutes", int(utils.LockoutDuration.Minutes())), nil)
-		} else {
-			utils.ErrorResponse(c, http.StatusUnauthorized,
-				fmt.Sprintf("Invalid email or password. %d attempts remaining", remaining), nil)
-		}
+		// Record the failed attempt for lockout, but return the IDENTICAL uniform
+		// response as the account-not-found branch above — no per-attempt counter
+		// and no distinct lockout status here, both of which would otherwise reveal
+		// that the email belongs to a real account. Once the attempt threshold is
+		// crossed the account is locked internally; the uniform "temporarily locked"
+		// message is then emitted by the IsLocked check at the top of this handler
+		// on the next attempt, the same way for existent and non-existent emails.
+		lockout.RecordFailedAttempt(req.Email)
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password", nil)
 		return
 	}
 

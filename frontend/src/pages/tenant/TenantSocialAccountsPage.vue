@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import { Plus, Pencil, Trash2, Link as LinkIcon, ExternalLink, Package } from 'lucide-vue-next'
+import { getSocialIconPath } from '@/lib/socialIcons'
 
 const { get, post, put, del } = useAPI()
 
@@ -192,8 +193,13 @@ function getAccountUrl(account) {
   return '#'
 }
 
-function getPlatformIcon(platform) {
-  return platform?.icon || null
+// Resolve the icon to a TRUSTED SVG path from the static SOCIAL_ICON_PATHS map,
+// keyed by platform code. Never render the DB-provided `platform.icon` string as
+// HTML — platform rows are global master data writable by any tenant admin, so a
+// raw value could carry a stored-XSS payload (SVG SMIL event handlers execute via
+// v-html/innerHTML). Returning only a path (bound via :d on a <path>) is safe.
+function getPlatformIconPath(platform) {
+  return getSocialIconPath(platform?.code)
 }
 
 onMounted(() => {
@@ -235,12 +241,11 @@ onMounted(() => {
           <!-- Platform icon -->
           <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
             <svg
-              v-if="getPlatformIcon(account.platform)"
+              v-if="getPlatformIconPath(account.platform)"
               class="w-6 h-6 text-gray-600 dark:text-gray-300"
               viewBox="0 0 24 24"
               fill="currentColor"
-              v-html="getPlatformIcon(account.platform)"
-            ></svg>
+            ><path :d="getPlatformIconPath(account.platform)" /></svg>
             <LinkIcon v-else class="w-6 h-6 text-gray-400" />
           </div>
 

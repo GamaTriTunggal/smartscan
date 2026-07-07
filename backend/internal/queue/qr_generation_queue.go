@@ -186,12 +186,24 @@ func (q *RedisQRGenerationQueue) Nack(ctx context.Context, job *QRGenerationJob,
 		return q.MoveToDLQ(ctx, job, job.LastError)
 	}
 
-	// Ack old message and re-enqueue with incremented retry count
-	q.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, job.StreamID)
-	q.client.XDel(ctx, QRGenStreamQueue, job.StreamID)
-
+	// Enqueue-then-ack: re-add the job to the stream FIRST, and only remove the
+	// original message from the stream + PEL once the re-enqueue is confirmed.
+	// If Enqueue fails (e.g. ErrCircuitOpen when the breaker just tripped, or a
+	// Redis error), the original message stays in the pending-entries list so
+	// ClaimStaleJobs / a redelivery can still recover it with its retry state,
+	// instead of being silently dropped.
+	oldStreamID := job.StreamID
 	job.StreamID = "" // Clear old stream ID so Enqueue assigns new one
-	return q.Enqueue(ctx, job)
+	if err := q.Enqueue(ctx, job); err != nil {
+		job.StreamID = oldStreamID // restore so the caller/PEL keeps a handle on it
+		return err
+	}
+
+	// Re-enqueue succeeded — safe to drop the original message.
+	q.client.XAck(ctx, QRGenStreamQueue, QRGenConsumerGroup, oldStreamID)
+	q.client.XDel(ctx, QRGenStreamQueue, oldStreamID)
+
+	return nil
 }
 
 // MoveToDLQ moves a job to the dead letter queue

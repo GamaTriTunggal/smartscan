@@ -65,13 +65,28 @@ const fetchTemplates = async () => {
     const response = await get('/tenant/templates', params)
     if (response.success && response.data) {
       templates.value = response.data.templates || []
-      pagination.value = response.data.pagination
+      pagination.value = response.data.pagination || pagination.value
+      // Self-heal: if this page emptied out (e.g. last row deleted), snap back
+      if (templates.value.length === 0 && pagination.value.page > 1) {
+        pagination.value.page = Math.max(1, pagination.value.total_page)
+        return fetchTemplates()
+      }
     }
   } catch (error) {
     console.error('Failed to fetch templates:', error)
   } finally {
     loading.value = false
   }
+}
+
+const onStatusChange = () => {
+  pagination.value.page = 1
+  fetchTemplates()
+}
+
+const goToPage = (p) => {
+  pagination.value.page = p
+  fetchTemplates()
 }
 
 // Check if a template is the tenant default for its type
@@ -129,6 +144,7 @@ const createTemplate = (type) => {
 watch(() => route.query.type, (newType) => {
   if (newType && typeof newType === 'string' && ['validation', 'warranty'].includes(newType)) {
     typeFilter.value = newType
+    pagination.value.page = 1
     fetchTemplates()
   }
 }, { immediate: false })
@@ -168,7 +184,7 @@ onMounted(async () => {
     <div class="flex gap-4 mb-6">
       <select
         v-model="statusFilter"
-        @change="fetchTemplates"
+        @change="onStatusChange"
         class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#27272a]"
       >
         <option value="active">Active</option>
@@ -287,5 +303,28 @@ onMounted(async () => {
         </Button>
       </div>
     </Card>
+
+    <!-- Pagination -->
+    <div v-if="pagination.total_page > 1" class="flex justify-center gap-2 mt-6">
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="pagination.page === 1"
+        @click="goToPage(pagination.page - 1)"
+      >
+        Previous
+      </Button>
+      <span class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+        Page {{ pagination.page }} of {{ pagination.total_page }}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="pagination.page >= pagination.total_page"
+        @click="goToPage(pagination.page + 1)"
+      >
+        Next
+      </Button>
+    </div>
   </div>
 </template>

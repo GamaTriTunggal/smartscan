@@ -161,10 +161,19 @@ const isCountryFormValid = computed(() => {
 // Fetch all active provinces for dropdowns (without filters/limits)
 async function fetchAllProvincesForDropdown() {
   try {
-    const response = await get('/tenant/location-master/provinces?status=active&limit=1000')
-    if (response.success) {
-      allProvincesForDropdown.value = response.data?.provinces || []
-    }
+    // The backend caps limit at 100, so walk every page to collect all provinces.
+    const url = '/tenant/location-master/provinces?status=active&limit=100'
+    const all = []
+    let pageNum = 1
+    let totalPage = 1
+    do {
+      const response = await get(`${url}&page=${pageNum}`)
+      if (!response.success) break
+      all.push(...(response.data?.provinces || []))
+      totalPage = response.data?.pagination?.total_page || 1
+      pageNum++
+    } while (pageNum <= totalPage)
+    allProvincesForDropdown.value = all
   } catch (error) {
     console.error('Failed to fetch provinces for dropdown:', error)
   }

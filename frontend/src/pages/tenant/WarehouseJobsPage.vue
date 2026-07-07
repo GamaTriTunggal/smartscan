@@ -25,7 +25,7 @@ const pagination = ref({
   page: 1,
   limit: 20,
   total: 0,
-  total_pages: 0
+  total_page: 0
 })
 
 const scanForm = ref({
@@ -74,8 +74,8 @@ async function fetchHistory() {
       history.value = response.data.movements || []
       pagination.value = {
         ...pagination.value,
-        total: response.data.total,
-        total_pages: response.data.total_pages
+        total: response.data?.pagination?.total || 0,
+        total_page: response.data?.pagination?.total_page || 0
       }
     }
   } catch (error) {
@@ -175,7 +175,7 @@ function prevPage() {
 }
 
 function nextPage() {
-  if (pagination.value.page < pagination.value.total_pages) {
+  if (pagination.value.page < pagination.value.total_page) {
     pagination.value.page++
     fetchHistory()
   }
@@ -325,9 +325,9 @@ onMounted(() => {
             Previous
           </Button>
           <span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400">
-            Page {{ pagination.page }} of {{ pagination.total_pages || 1 }}
+            Page {{ pagination.page }} of {{ pagination.total_page || 1 }}
           </span>
-          <Button variant="outline" size="sm" :disabled="pagination.page >= pagination.total_pages" @click="nextPage">
+          <Button variant="outline" size="sm" :disabled="pagination.page >= pagination.total_page" @click="nextPage">
             Next
           </Button>
         </div>

@@ -184,8 +184,8 @@ async function fetchDetections() {
     const response = await get(url)
     if (response.success) {
       detections.value = response.data?.detections || []
-      total.value = response.data?.total || 0
-      totalPages.value = response.data?.total_pages || 0
+      total.value = response.data?.pagination?.total || 0
+      totalPages.value = response.data?.pagination?.total_page || 0
     }
   } catch (error) {
     console.error('Failed to fetch detections:', error)
@@ -259,8 +259,8 @@ async function fetchReports() {
     const response = await get(url)
     if (response.success) {
       reports.value = response.data?.reports || []
-      reportsTotal.value = response.data?.total || 0
-      reportsTotalPages.value = response.data?.total_pages || 0
+      reportsTotal.value = response.data?.pagination?.total || 0
+      reportsTotalPages.value = response.data?.pagination?.total_page || 0
     }
   } catch (error) {
     console.error('Failed to fetch reports:', error)

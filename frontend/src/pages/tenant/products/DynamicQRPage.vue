@@ -37,12 +37,22 @@ const selectedProductForBatch = ref(null)
 const fetchProducts = async () => {
   try {
     loading.value = true
-    const response = await get('/tenant/products', {
-      limit: 100,
-    })
-    if (response.success && response.data) {
-      products.value = response.data.products || []
-    }
+    // The backend caps limit at 100, so walk every page — search is
+    // client-side and must cover the whole catalog.
+    const all = []
+    let pageNum = 1
+    let totalPage = 1
+    do {
+      const response = await get('/tenant/products', {
+        page: pageNum,
+        limit: 100,
+      })
+      if (!response.success || !response.data) break
+      all.push(...(response.data.products || []))
+      totalPage = response.data.pagination?.total_page || 1
+      pageNum++
+    } while (pageNum <= totalPage)
+    products.value = all
   } catch (error) {
     console.error('Failed to fetch products:', error)
   } finally {

@@ -173,14 +173,6 @@ type APIResponse struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
-	Meta    *Meta       `json:"meta,omitempty"`
-}
-
-type Meta struct {
-	Page       int   `json:"page,omitempty"`
-	PerPage    int   `json:"per_page,omitempty"`
-	Total      int64 `json:"total,omitempty"`
-	TotalPages int   `json:"total_pages,omitempty"`
 }
 
 func SuccessResponse(c *gin.Context, statusCode int, message string, data interface{}) {
@@ -188,15 +180,6 @@ func SuccessResponse(c *gin.Context, statusCode int, message string, data interf
 		Success: true,
 		Message: message,
 		Data:    data,
-	})
-}
-
-func SuccessResponseWithMeta(c *gin.Context, statusCode int, message string, data interface{}, meta *Meta) {
-	c.JSON(statusCode, APIResponse{
-		Success: true,
-		Message: message,
-		Data:    data,
-		Meta:    meta,
 	})
 }
 

@@ -15,7 +15,6 @@ const loading = ref(false)
 const templates = ref([])
 const page = ref(1)
 const limit = ref(20)
-const total = ref(0)
 const totalPages = ref(0)
 const statusFilter = ref('active')
 
@@ -55,8 +54,12 @@ async function fetchTemplates() {
     })
     if (response.success) {
       templates.value = response.data?.zone_templates || []
-      total.value = response.data?.pagination?.total || 0
       totalPages.value = response.data?.pagination?.total_page || 0
+      // Self-heal: if this page emptied out (e.g. last row deleted), snap back
+      if (templates.value.length === 0 && page.value > 1) {
+        page.value = Math.max(1, totalPages.value)
+        return fetchTemplates()
+      }
     }
   } catch (error) {
     console.error('Failed to fetch zone templates:', error)

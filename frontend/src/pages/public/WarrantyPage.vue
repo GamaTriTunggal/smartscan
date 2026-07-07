@@ -90,12 +90,20 @@ const fetchTemplate = async () => {
 const fetchCountries = async () => {
   try {
     loadingCountries.value = true
-    const response = await axios.get(`${apiBase}/public/locations/countries`, {
-      params: { limit: 250 }
-    })
-    if (response.data.success && response.data.data?.countries) {
-      countries.value = response.data.data.countries
-    }
+    // The backend caps limit at 100, so walk every page to collect all countries.
+    const all = []
+    let page = 1
+    let totalPage = 1
+    do {
+      const response = await axios.get(`${apiBase}/public/locations/countries`, {
+        params: { limit: 100, page }
+      })
+      if (!response.data.success) break
+      all.push(...(response.data.data?.countries || []))
+      totalPage = response.data.data?.pagination?.total_page || 1
+      page++
+    } while (page <= totalPage)
+    countries.value = all
   } catch (err) {
     console.error('Failed to fetch countries:', err)
   } finally {
@@ -131,12 +139,20 @@ const fetchCities = async (provinceId) => {
   }
   try {
     loadingCities.value = true
-    const response = await axios.get(`${apiBase}/public/locations/cities`, {
-      params: { province_id: provinceId, limit: 500 }
-    })
-    if (response.data.success && response.data.data?.cities) {
-      cities.value = response.data.data.cities
-    }
+    // The backend caps limit at 100, so walk every page to collect all cities.
+    const all = []
+    let page = 1
+    let totalPage = 1
+    do {
+      const response = await axios.get(`${apiBase}/public/locations/cities`, {
+        params: { province_id: provinceId, limit: 100, page }
+      })
+      if (!response.data.success) break
+      all.push(...(response.data.data?.cities || []))
+      totalPage = response.data.data?.pagination?.total_page || 1
+      page++
+    } while (page <= totalPage)
+    cities.value = all
   } catch (err) {
     console.error('Failed to fetch cities:', err)
   } finally {

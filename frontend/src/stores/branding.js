@@ -10,10 +10,10 @@ export const DEFAULT_APP_NAME = import.meta.env.VITE_APP_NAME || 'smartscan'
 const DEFAULT_BRANDING = {
   app_name: DEFAULT_APP_NAME,
   logo_url: '',
-  header_gradient_start: '#18181b',
-  header_gradient_end: '#FFAB2E',
+  header_gradient_start: '#0d9488',
+  header_gradient_end: '#30e3e3',
   header_text_color: '#ffffff',
-  button_bg_color: '#F5A623',
+  button_bg_color: '#00b4b4',
   button_text_color: '#ffffff'
 }
 

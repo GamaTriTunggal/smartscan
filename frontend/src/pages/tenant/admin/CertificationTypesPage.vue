@@ -16,7 +16,7 @@ const showModal = ref(false)
 const editingType = ref(null)
 const statusFilter = ref('active')
 const countryFilter = ref('')
-const { search: searchQuery, watchFilter } = useListFilter(fetchCertTypes)
+const { search: searchQuery, pagination, watchFilter, prevPage, nextPage } = useListFilter(fetchCertTypes, { limit: 50 })
 watchFilter(statusFilter, countryFilter)
 
 const form = ref({
@@ -34,16 +34,23 @@ const errorMessage = ref('')
 async function fetchCertTypes() {
   loading.value = true
   try {
-    let url = `/tenant/certifications/types/all?status=${statusFilter.value}`
+    let url = `/tenant/certifications/types/all?status=${statusFilter.value}&page=${pagination.value.page}&limit=${pagination.value.limit}`
     if (countryFilter.value) {
       url += `&country_code=${countryFilter.value}`
     }
     if (searchQuery.value) {
-      url += `&search=${searchQuery.value}`
+      url += `&search=${encodeURIComponent(searchQuery.value)}`
     }
     const response = await get(url)
     if (response.success) {
       certTypes.value = response.data?.certification_types || []
+      pagination.value.total = response.data?.pagination?.total || 0
+      pagination.value.total_page = response.data?.pagination?.total_page || 0
+      // Self-heal: if this page emptied out (e.g. last row deleted), snap back
+      if (certTypes.value.length === 0 && pagination.value.page > 1) {
+        pagination.value.page = Math.max(1, pagination.value.total_page)
+        return fetchCertTypes()
+      }
     }
   } catch (error) {
     console.error('Failed to fetch certification types:', error)
@@ -315,6 +322,29 @@ onMounted(() => {
 
     <div v-if="!loading && certTypes.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
       No certification types found.
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="pagination.total_page > 1" class="flex justify-center gap-2 mt-6">
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="pagination.page === 1"
+        @click="prevPage"
+      >
+        Previous
+      </Button>
+      <span class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+        Page {{ pagination.page }} of {{ pagination.total_page }}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="pagination.page >= pagination.total_page"
+        @click="nextPage"
+      >
+        Next
+      </Button>
     </div>
 
     <!-- Modal -->

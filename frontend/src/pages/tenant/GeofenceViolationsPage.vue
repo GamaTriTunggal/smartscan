@@ -32,7 +32,6 @@ const loading = ref(false)
 const violations = ref([])
 const page = ref(1)
 const limit = ref(20)
-const total = ref(0)
 const totalPages = ref(0)
 
 // Date helpers
@@ -188,7 +187,6 @@ async function fetchViolations() {
     const response = await get('/tenant/geofence/violations', params)
     if (response.success) {
       violations.value = response.data?.violations || []
-      total.value = response.data?.pagination?.total || 0
       totalPages.value = response.data?.pagination?.total_page || 0
     }
   } catch (error) {

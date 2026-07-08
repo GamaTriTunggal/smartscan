@@ -50,16 +50,19 @@ services:
     volumes:
       - redis_data:/data
     # Redis tuning for low memory
+    # ${VAR:+...} expands to nothing when REDIS_PASSWORD is empty/unset, so a
+    # blank password runs redis without auth (reachable only on the internal
+    # Docker network) instead of crashing on a bare --requirepass flag.
     command: >
       redis-server
       --appendonly yes
-      --requirepass ${REDIS_PASSWORD}
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
       --maxmemory 100mb
       --maxmemory-policy allkeys-lru
       --save 900 1
       --save 300 10
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "redis-cli ${REDIS_PASSWORD:+-a ${REDIS_PASSWORD}} ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5

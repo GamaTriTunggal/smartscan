@@ -177,19 +177,9 @@ func (h *GeofenceHandler) ListGeofenceViolations(c *gin.Context) {
 		return
 	}
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Geofence violations", gin.H{
 		"violations": violations,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -577,19 +567,9 @@ func (h *GeofenceHandler) GetBatchGeofenceViolations(c *gin.Context) {
 		Offset(offset).Limit(limit).
 		Find(&violations)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Batch geofence violations", gin.H{
 		"violations": violations,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -862,19 +842,9 @@ func (h *GeofenceHandler) ListZoneTemplates(c *gin.Context) {
 		Offset(offset).Limit(limit).
 		Find(&templates)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Zone templates", gin.H{
 		"zone_templates": templates,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

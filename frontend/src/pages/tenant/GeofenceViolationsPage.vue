@@ -9,6 +9,7 @@ import ExportTimezoneModal from '@/components/ui/ExportTimezoneModal.vue'
 import GeofenceViolationMap from '@/components/GeofenceViolationMap.vue'
 import { MapPin, Download, AlertTriangle, Shield, Navigation, TrendingUp, TrendingDown, Percent, Ruler, Package, Search, ChevronDown } from 'lucide-vue-next'
 import { onClickOutside } from '@vueuse/core'
+import { getPagination } from '@/lib/pagination'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -187,7 +188,7 @@ async function fetchViolations() {
     const response = await get('/tenant/geofence/violations', params)
     if (response.success) {
       violations.value = response.data?.violations || []
-      totalPages.value = response.data?.pagination?.total_page || 0
+      totalPages.value = getPagination(response.data).totalPages
     }
   } catch (error) {
     console.error('Failed to fetch violations:', error)

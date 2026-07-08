@@ -183,6 +183,22 @@ func SuccessResponse(c *gin.Context, statusCode int, message string, data interf
 	})
 }
 
+// PaginationMeta builds the standard pagination object embedded in list
+// responses. Every paginated handler must use this instead of an inline
+// gin.H literal — the shape (including the singular total_page key) is a
+// wire contract the frontend depends on.
+func PaginationMeta(page, limit int, total int64) gin.H {
+	if limit <= 0 {
+		limit = 1
+	}
+	return gin.H{
+		"page":       page,
+		"limit":      limit,
+		"total":      total,
+		"total_page": (total + int64(limit) - 1) / int64(limit),
+	}
+}
+
 func ErrorResponse(c *gin.Context, statusCode int, message string, err error) {
 	// Always log the full error internally for debugging
 	if err != nil {

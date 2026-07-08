@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post, put } = useAPI()
 const { formatDateTime } = useDateTime()
@@ -184,8 +185,9 @@ async function fetchDetections() {
     const response = await get(url)
     if (response.success) {
       detections.value = response.data?.detections || []
-      total.value = response.data?.pagination?.total || 0
-      totalPages.value = response.data?.pagination?.total_page || 0
+      const p = getPagination(response.data)
+      total.value = p.total
+      totalPages.value = p.totalPages
     }
   } catch (error) {
     console.error('Failed to fetch detections:', error)
@@ -259,8 +261,9 @@ async function fetchReports() {
     const response = await get(url)
     if (response.success) {
       reports.value = response.data?.reports || []
-      reportsTotal.value = response.data?.pagination?.total || 0
-      reportsTotalPages.value = response.data?.pagination?.total_page || 0
+      const p = getPagination(response.data)
+      reportsTotal.value = p.total
+      reportsTotalPages.value = p.totalPages
     }
   } catch (error) {
     console.error('Failed to fetch reports:', error)

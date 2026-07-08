@@ -16,6 +16,7 @@ import { Line } from 'vue-chartjs'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Filler, Title, Tooltip, Legend } from 'chart.js'
 import { ArrowLeft, Eye, BarChart3, MapPin as MapPinIcon, Activity, Navigation, RefreshCw } from 'lucide-vue-next'
 import { useTour, isTourActive, getTourNonce } from '@/composables/useTour.js'
+import { getPagination } from '@/lib/pagination'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Title, Tooltip, Legend)
 
@@ -279,7 +280,8 @@ async function fetchCounterfeitCodes() {
     const response = await get(`/tenant/qr-batches/${batchId.value}/codes`, params)
     if (response.success && response.data) {
       counterfeitCodes.value = response.data.codes || []
-      counterfeitPagination.value = response.data.pagination
+      const p = getPagination(response.data)
+      counterfeitPagination.value = { page: p.page, limit: p.limit, total: p.total, total_page: p.totalPages }
     }
   } catch (error) {
     console.error('Failed to fetch counterfeit codes:', error)
@@ -299,11 +301,12 @@ async function fetchGeoViolations() {
     const response = await get('/tenant/geofence/violations', params)
     if (response.success && response.data) {
       geoViolations.value = response.data.violations || []
+      const p = getPagination(response.data)
       geoViolationsPagination.value = {
-        page: response.data.pagination?.page || 1,
-        limit: response.data.pagination?.limit || 20,
-        total: response.data.pagination?.total || 0,
-        total_page: response.data.pagination?.total_page || 0
+        page: p.page,
+        limit: p.limit,
+        total: p.total,
+        total_page: p.totalPages
       }
     }
   } catch (error) {
@@ -468,7 +471,8 @@ const fetchCodes = async () => {
     const response = await get(`/tenant/qr-batches/${batchId.value}/codes`, params)
     if (response.success && response.data) {
       codes.value = response.data.codes || []
-      pagination.value = response.data.pagination
+      const p = getPagination(response.data)
+      pagination.value = { page: p.page, limit: p.limit, total: p.total, total_page: p.totalPages }
     }
   } catch (error) {
     console.error('Failed to fetch codes:', error)

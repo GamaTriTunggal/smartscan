@@ -25,6 +25,7 @@ import {
   ChevronDown, ChevronUp, Activity, ShieldAlert, Users, Globe,
   Search, SlidersHorizontal, BarChart3
 } from 'lucide-vue-next'
+import { getPagination } from '@/lib/pagination'
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -276,12 +277,12 @@ async function fetchLogs() {
     const response = await get('/tenant/audit-logs', params)
     if (response.success) {
       logs.value = response.data.logs || []
-      const p = response.data.pagination || {}
+      const p = getPagination(response.data)
       pagination.value = {
         ...pagination.value,
-        page: p.page || pagination.value.page,
-        total: p.total || 0,
-        total_page: p.total_page || 0,
+        page: p.page,
+        total: p.total,
+        total_page: p.totalPages,
       }
     }
   } catch (error) {

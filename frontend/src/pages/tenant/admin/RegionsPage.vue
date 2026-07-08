@@ -5,6 +5,7 @@ import { useAPI } from '@/composables/useAPI'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post, put, del } = useAPI()
 
@@ -170,7 +171,7 @@ async function fetchAllProvincesForDropdown() {
       const response = await get(`${url}&page=${pageNum}`)
       if (!response.success) break
       all.push(...(response.data?.provinces || []))
-      totalPage = response.data?.pagination?.total_page || 1
+      totalPage = getPagination(response.data).totalPages || 1
       pageNum++
     } while (pageNum <= totalPage)
     allProvincesForDropdown.value = all
@@ -287,7 +288,7 @@ async function fetchCities() {
       const response = await get(`${url}&page=${pageNum}`)
       if (!response.success) break
       all.push(...(response.data?.cities || []))
-      totalPage = response.data?.pagination?.total_page || 1
+      totalPage = getPagination(response.data).totalPages || 1
       pageNum++
     } while (pageNum <= totalPage)
     cities.value = all

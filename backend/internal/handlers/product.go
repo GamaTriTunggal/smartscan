@@ -71,12 +71,7 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Products retrieved", gin.H{
 		"products": products,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

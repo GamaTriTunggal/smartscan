@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import { getSocialIconPath } from '@/lib/socialIcons'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post, put, del } = useAPI()
 
@@ -40,8 +41,9 @@ async function fetchPlatforms() {
     const response = await get(url)
     if (response.success) {
       platforms.value = response.data?.platforms || []
-      pagination.value.total = response.data?.pagination?.total || 0
-      pagination.value.total_page = response.data?.pagination?.total_page || 0
+      const p = getPagination(response.data)
+      pagination.value.total = p.total
+      pagination.value.total_page = p.totalPages
       // Self-heal: if this page emptied out (e.g. last row deleted), snap back
       if (platforms.value.length === 0 && pagination.value.page > 1) {
         pagination.value.page = Math.max(1, pagination.value.total_page)

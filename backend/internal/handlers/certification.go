@@ -63,12 +63,7 @@ func (h *CertificationHandler) ListCertificationTypes(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Certification types retrieved", gin.H{
 		"certification_types": types,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

@@ -9,6 +9,7 @@ import { usePublicCompanyContact } from '@/composables/usePublicCompanyContact'
 import PhoneInput from '@/components/PhoneInput.vue'
 import Alert from '@/components/ui/Alert.vue'
 import CompanyContactCard from '@/components/public/CompanyContactCard.vue'
+import { getPagination } from '@/lib/pagination'
 
 const route = useRoute()
 const brandingStore = useBrandingStore()
@@ -100,7 +101,7 @@ const fetchCountries = async () => {
       })
       if (!response.data.success) break
       all.push(...(response.data.data?.countries || []))
-      totalPage = response.data.data?.pagination?.total_page || 1
+      totalPage = getPagination(response.data.data).totalPages || 1
       page++
     } while (page <= totalPage)
     countries.value = all
@@ -149,7 +150,7 @@ const fetchCities = async (provinceId) => {
       })
       if (!response.data.success) break
       all.push(...(response.data.data?.cities || []))
-      totalPage = response.data.data?.pagination?.total_page || 1
+      totalPage = getPagination(response.data.data).totalPages || 1
       page++
     } while (page <= totalPage)
     cities.value = all

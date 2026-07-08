@@ -460,19 +460,9 @@ func (h *ScanningHandler) GetQCHistory(c *gin.Context) {
 		Offset(offset).Limit(limit).
 		Find(&scans)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "QC history retrieved", gin.H{
 		"scans": scans,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -688,19 +678,9 @@ func (h *ScanningHandler) GetWarehouseHistory(c *gin.Context) {
 		Offset(offset).Limit(limit).
 		Find(&movements)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Warehouse history retrieved", gin.H{
 		"movements": movements,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

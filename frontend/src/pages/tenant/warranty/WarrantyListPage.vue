@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import ExportTimezoneModal from '@/components/ui/ExportTimezoneModal.vue'
+import { getPagination } from '@/lib/pagination'
 
 const router = useRouter()
 const { get, getAuthHeaders } = useAPI()
@@ -74,13 +75,11 @@ async function fetchWarranties() {
     const response = await get('/tenant/warranties', params)
     if (response.success) {
       warranties.value = response.data?.warranties || []
-      const p = response.data?.pagination
-      if (p) {
-        pagination.value = {
-          ...pagination.value,
-          total: p.total || 0,
-          total_page: p.total_pages || p.total_page || 0,
-        }
+      const p = getPagination(response.data)
+      pagination.value = {
+        ...pagination.value,
+        total: p.total,
+        total_page: p.totalPages,
       }
     }
   } catch (err) {

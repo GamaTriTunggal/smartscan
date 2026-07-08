@@ -57,12 +57,7 @@ func (h *LocationMasterHandler) ListCountries(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Countries retrieved", gin.H{
 		"countries": countries,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -242,12 +237,7 @@ func (h *LocationMasterHandler) ListProvinces(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Provinces retrieved", gin.H{
 		"provinces": provinces,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -471,12 +461,7 @@ func (h *LocationMasterHandler) ListCities(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Cities retrieved", gin.H{
 		"cities": cities,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

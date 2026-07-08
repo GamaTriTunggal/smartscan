@@ -6,6 +6,7 @@ import { useDateTime } from '@/composables/useDateTime'
 import { useTour } from '@/composables/useTour'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
+import { getPagination } from '@/lib/pagination'
 
 const router = useRouter()
 const route = useRoute()
@@ -65,7 +66,8 @@ const fetchTemplates = async () => {
     const response = await get('/tenant/templates', params)
     if (response.success && response.data) {
       templates.value = response.data.templates || []
-      pagination.value = response.data.pagination || pagination.value
+      const p = getPagination(response.data)
+      pagination.value = { page: p.page, limit: p.limit, total: p.total, total_page: p.totalPages }
       // Self-heal: if this page emptied out (e.g. last row deleted), snap back
       if (templates.value.length === 0 && pagination.value.page > 1) {
         pagination.value.page = Math.max(1, pagination.value.total_page)

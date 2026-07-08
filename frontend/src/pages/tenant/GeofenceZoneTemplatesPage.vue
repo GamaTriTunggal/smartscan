@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
 import GeofenceMapPicker from '@/components/GeofenceMapPicker.vue'
 import { MapPin, Plus, Pencil, Trash2, RotateCcw } from 'lucide-vue-next'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post, put, del } = useAPI()
 const { formatDateTime } = useDateTime()
@@ -54,7 +55,7 @@ async function fetchTemplates() {
     })
     if (response.success) {
       templates.value = response.data?.zone_templates || []
-      totalPages.value = response.data?.pagination?.total_page || 0
+      totalPages.value = getPagination(response.data).totalPages
       // Self-heal: if this page emptied out (e.g. last row deleted), snap back
       if (templates.value.length === 0 && page.value > 1) {
         page.value = Math.max(1, totalPages.value)

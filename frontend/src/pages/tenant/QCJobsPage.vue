@@ -5,6 +5,7 @@ import { useDateTime } from '@/composables/useDateTime'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post } = useAPI()
 const { formatDate, formatDateTime } = useDateTime()
@@ -79,10 +80,11 @@ async function fetchHistory() {
     const response = await get('/tenant/qc/history', params)
     if (response.success) {
       history.value = response.data.scans || []
+      const p = getPagination(response.data)
       pagination.value = {
         ...pagination.value,
-        total: response.data?.pagination?.total || 0,
-        total_page: response.data?.pagination?.total_page || 0
+        total: p.total,
+        total_page: p.totalPages
       }
     }
   } catch (error) {

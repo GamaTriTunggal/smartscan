@@ -13,6 +13,7 @@ import BatchPdfDownload from '@/components/products/BatchPdfDownload.vue'
 import QRGenerationProgress from '@/components/tenant/QRGenerationProgress.vue'
 import { ArrowLeft, QrCode, Download, Plus, Package, Eye, Search, Calendar, Shield, Megaphone, Trash2, RotateCcw, MapPin, RefreshCw } from 'lucide-vue-next'
 import { useTour, isTourActive, getTourNonce } from '@/composables/useTour.js'
+import { getPagination } from '@/lib/pagination'
 
 const route = useRoute()
 const router = useRouter()
@@ -84,7 +85,7 @@ const fetchBatches = async () => {
     })
     if (response.success && response.data) {
       batches.value = response.data.batches || []
-      total.value = response.data.pagination?.total || 0
+      total.value = getPagination(response.data).total
     }
   } catch (error) {
     console.error('Failed to fetch batches:', error)

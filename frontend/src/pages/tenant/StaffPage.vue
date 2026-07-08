@@ -9,6 +9,7 @@ import Input from '@/components/ui/Input.vue'
 import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
 import PhoneInput from '@/components/PhoneInput.vue'
 import { Copy, Check } from 'lucide-vue-next'
+import { getPagination } from '@/lib/pagination'
 
 const { get, post, put, del } = useAPI()
 const toast = useToast()
@@ -60,7 +61,8 @@ async function fetchStaff() {
     })
     if (response.success && response.data) {
       staff.value = response.data.staff || []
-      pagination.value = response.data.pagination
+      const p = getPagination(response.data)
+      pagination.value = { page: p.page, limit: p.limit, total: p.total, total_page: p.totalPages }
     }
   } catch (error) {
     console.error('Failed to fetch staff:', error)

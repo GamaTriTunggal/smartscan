@@ -62,12 +62,7 @@ func (h *StaffHandler) ListTenantStaff(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Tenant staff retrieved", gin.H{
 		"staff": staff,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": (total + int64(limit) - 1) / int64(limit),
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

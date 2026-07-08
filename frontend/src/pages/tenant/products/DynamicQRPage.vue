@@ -9,6 +9,7 @@ import CreateProductModal from '@/components/products/CreateProductModal.vue'
 import CreateBatchModal from '@/components/products/CreateBatchModal.vue'
 import { QrCode, Plus, Package, Settings, Search, History } from 'lucide-vue-next'
 import { useTour, isTourActive, getTourNonce } from '@/composables/useTour.js'
+import { getPagination } from '@/lib/pagination'
 
 const router = useRouter()
 const { get } = useAPI()
@@ -49,7 +50,7 @@ const fetchProducts = async () => {
       })
       if (!response.success || !response.data) break
       all.push(...(response.data.products || []))
-      totalPage = response.data.pagination?.total_page || 1
+      totalPage = getPagination(response.data).totalPages || 1
       pageNum++
     } while (pageNum <= totalPage)
     products.value = all

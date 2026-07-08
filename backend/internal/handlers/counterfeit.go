@@ -105,19 +105,9 @@ func (h *CounterfeitHandler) ListCounterfeitDetections(c *gin.Context) {
 		Offset(offset).Limit(limit).
 		Find(&detections)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Counterfeit detections retrieved", gin.H{
 		"detections": detections,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -941,20 +931,10 @@ func (h *CounterfeitHandler) ListCounterfeitReports(c *gin.Context) {
 		Limit(10).
 		Scan(&storeSummary)
 
-	totalPage := int(total) / limit
-	if int(total)%limit > 0 {
-		totalPage++
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Counterfeit reports retrieved", gin.H{
 		"reports":    reports,
 		"top_stores": storeSummary,
-		"pagination": gin.H{
-			"page":       page,
-			"limit":      limit,
-			"total":      total,
-			"total_page": totalPage,
-		},
+		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }
 

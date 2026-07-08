@@ -8,6 +8,7 @@
 //
 //	smartscan-admin reset-password <email>
 //	smartscan-admin list-users
+//	smartscan-admin seed-demo
 package main
 
 import (
@@ -51,6 +52,8 @@ func main() {
 		resetPassword(db, os.Args[2])
 	case "list-users":
 		listUsers(db)
+	case "seed-demo":
+		seedDemo(db, cfg)
 	default:
 		usage()
 		os.Exit(1)
@@ -62,7 +65,10 @@ func usage() {
 
 Commands:
   reset-password <email>   Set a one-time password for the user; they must change it on next login
-  list-users               List all staff accounts`)
+  list-users               List all staff accounts
+  seed-demo                Seed a demo company with realistic data (products, QR batches,
+                           scans, warranties, geofence + counterfeit cases) so every feature
+                           can be explored. Idempotent: exits cleanly if already seeded.`)
 }
 
 func resetPassword(db *gorm.DB, email string) {

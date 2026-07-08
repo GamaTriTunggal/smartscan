@@ -383,17 +383,21 @@ func (h *ScanningHandler) QCScan(c *gin.Context) {
 		return
 	}
 
-	// Create interaction record
+	// Create interaction record. ScannedBy must be the user ID, not the
+	// staff ID — interactions.scanned_by has an FK to users(id).
 	interaction := models.Interaction{
 		QRCodeID:               &qrCode.ID,
 		TenantID:               tenantUUID,
 		InteractionCategory:    models.InteractionCategoryTenantAccess,
 		InteractionSubcategory: models.InteractionSubcategoryQCScan,
 		InteractionStatus:      models.InteractionStatusSuccess,
-		ScannedBy:              &staffID,
+		ScannedBy:              &userUUID,
+		IPAddress:              c.ClientIP(), // inet column rejects the empty string
 		Geolocation:            scanGeo,
 	}
-	h.DB.Create(&interaction)
+	if err := h.DB.Create(&interaction).Error; err != nil {
+		sentry.CaptureHandlerError(c, err, "scanning.QCScan.interaction", sentry.ErrorTypeDatabase, sentry.SeverityHigh)
+	}
 
 	// Handle counterfeit detection
 	counterfeitDetected := false
@@ -601,17 +605,21 @@ func (h *ScanningHandler) WarehouseScan(c *gin.Context) {
 		return
 	}
 
-	// Create interaction record
+	// Create interaction record. ScannedBy must be the user ID, not the
+	// staff ID — interactions.scanned_by has an FK to users(id).
 	interaction := models.Interaction{
 		QRCodeID:               &qrCode.ID,
 		TenantID:               tenantUUID,
 		InteractionCategory:    models.InteractionCategoryTenantAccess,
 		InteractionSubcategory: models.InteractionSubcategoryWarehouseScan,
 		InteractionStatus:      models.InteractionStatusSuccess,
-		ScannedBy:              &staffID,
+		ScannedBy:              &userUUID,
+		IPAddress:              c.ClientIP(), // inet column rejects the empty string
 		Geolocation:            scanGeo,
 	}
-	h.DB.Create(&interaction)
+	if err := h.DB.Create(&interaction).Error; err != nil {
+		sentry.CaptureHandlerError(c, err, "scanning.WarehouseScan.interaction", sentry.ErrorTypeDatabase, sentry.SeverityHigh)
+	}
 
 	// Handle counterfeit detection
 	counterfeitDetected := false

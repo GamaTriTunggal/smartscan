@@ -480,6 +480,9 @@ func TestQCScan_Success(t *testing.T) {
 
 	req, _ := http.NewRequest("POST", "/api/v1/tenant/scanning/qc", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
+	// httptest requests have no RemoteAddr; production always does, and the
+	// handler stores c.ClientIP() into an inet column
+	req.RemoteAddr = "203.0.113.10:52341"
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -495,6 +498,16 @@ func TestQCScan_Success(t *testing.T) {
 	err := testDB.Where("qr_code_id = ?", qrCodeID).First(&qcScan).Error
 	assert.NoError(t, err)
 	assert.Equal(t, models.QCStatusPass, qcScan.QCStatus)
+
+	// Verify the analytics interaction row was persisted — regression test:
+	// interactions.scanned_by has an FK to users(id), so writing the staff ID
+	// here used to make the insert fail silently and drop the row.
+	var interaction models.Interaction
+	err = testDB.Where("qr_code_id = ? AND interaction_subcategory = ?", qrCodeID, models.InteractionSubcategoryQCScan).First(&interaction).Error
+	assert.NoError(t, err, "QC interaction row must be persisted")
+	if assert.NotNil(t, interaction.ScannedBy) {
+		assert.Equal(t, userID, *interaction.ScannedBy, "interaction.scanned_by must be the user ID (users FK), not the staff ID")
+	}
 }
 
 func TestQCScan_InvalidStatus(t *testing.T) {

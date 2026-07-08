@@ -39,10 +39,38 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Then open <http://localhost:3000> and complete the first-run setup wizard to create your company and administrator account.
+Then open <http://localhost:3000> and complete the first-run setup wizard to create your company and administrator account — or seed demo data (below) and skip the wizard entirely.
 
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:8080/api/v1
+
+### Demo data (optional)
+
+Want to explore every feature without building a catalog by hand? Seed a demo company:
+
+```bash
+# dev stack (docker compose up)
+docker compose exec backend go run ./cmd/admin seed-demo
+
+# production stack (docker-compose.prod.yml)
+docker compose exec backend ./smartscan-admin seed-demo
+```
+
+This creates **Demo Company** — three products (warranty-enabled, geofence-enabled, and plain), 4 QR batches with 105 codes, and ~35 days of scan history — so the dashboard, scan heatmap, geofence violations, warranty registrations, QC/warehouse job pages, and a counterfeit case all have data to look at. The command also prints two public QR URLs you can open in a browser to see exactly what a customer gets when scanning a printed code.
+
+Sign in at <http://localhost:3000/login>:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `demo-admin@smartscan.local` | `DemoPass123!` |
+| QC staff | `demo-qc@smartscan.local` | `DemoPass123!` |
+| Warehouse staff | `demo-warehouse@smartscan.local` | `DemoPass123!` |
+
+Notes:
+
+- Seeding is **idempotent** — running the command again is a no-op.
+- On a fresh install, seeding skips the first-run setup wizard (a company then exists); log in as the demo admin instead. If you already ran the wizard, the demo company is added alongside your own and the demo logins only see demo data.
+- Demo data is for evaluation — don't seed a production deployment you care about.
 
 ## Configuration
 

@@ -175,25 +175,6 @@ describe('DynamicQRPage', () => {
       expect(wrapper.text()).toContain('Dynamic QR')
     })
 
-    it('should show campaign badge if enabled', async () => {
-      const mockProducts = [
-        {
-          id: '1',
-          product_name: 'Campaign Product',
-          product_code: 'CAMP-001',
-          campaign_enabled: true,
-          campaign: { campaign_name: 'Summer Promo' },
-          created_at: '2025-01-15T10:00:00Z',
-        },
-      ]
-      mockGet.mockResolvedValue({ success: true, data: { products: mockProducts } })
-      const wrapper = createWrapper()
-      await flushPromises()
-
-      // Component shows "Campaign" badge, not full campaign name
-      expect(wrapper.text()).toContain('Campaign')
-    })
-
     it('should show warranty badge if enabled', async () => {
       const mockProducts = [
         {

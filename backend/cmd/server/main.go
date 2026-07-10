@@ -1,7 +1,5 @@
 package main
 
-// Fixed tenant_printing.go handlers - tenantID type assertion bug
-
 import (
 	"context"
 	"fmt"
@@ -11,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/database"
 	"github.com/gamatritunggal/smartscan/backend/internal/handlers"
@@ -20,6 +17,7 @@ import (
 	"github.com/gamatritunggal/smartscan/backend/internal/queue"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
 	"github.com/gamatritunggal/smartscan/backend/internal/storage"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -221,7 +219,6 @@ func main() {
 			logger.Error("Error stopping QR generation worker pool", "error", err)
 		}
 	}
-
 
 	// Close database connections
 	if err := database.Close(); err != nil {

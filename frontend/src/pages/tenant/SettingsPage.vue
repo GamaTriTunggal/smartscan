@@ -46,7 +46,6 @@ const counterfeitSettings = ref({
   end_user_scan_max: 0,
   velocity_check_enabled: false,
   max_speed_kmh: 1000,
-  alert_on_detection: true,
   auto_flag_suspicious: true,
 })
 
@@ -90,7 +89,6 @@ async function loadCounterfeitSettings() {
         end_user_scan_max: response.data.end_user_scan_max || 0,
         velocity_check_enabled: response.data.velocity_check_enabled || false,
         max_speed_kmh: response.data.max_speed_kmh || 1000,
-        alert_on_detection: response.data.alert_on_detection !== false,
         auto_flag_suspicious: response.data.auto_flag_suspicious !== false,
       }
     }
@@ -490,22 +488,6 @@ onMounted(async () => {
                 </span>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   Detect impossible travel (geolocation anomaly)
-                </p>
-              </div>
-            </label>
-
-            <label class="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                v-model="counterfeitSettings.alert_on_detection"
-                class="w-4 h-4 text-zinc-600 bg-gray-100 border-gray-300 rounded focus:ring-[#27272a] dark:focus:ring-[#27272a] dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              <div>
-                <span class="text-sm font-medium text-gray-900 dark:text-white">
-                  Email Notifications
-                </span>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  Send email when counterfeit is detected
                 </p>
               </div>
             </label>

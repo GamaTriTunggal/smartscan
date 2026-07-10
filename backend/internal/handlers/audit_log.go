@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
@@ -90,7 +90,7 @@ func (h *AuditLogHandler) ListAuditLogs(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, "Audit logs retrieved", gin.H{
-		"logs": results,
+		"logs":       results,
 		"pagination": utils.PaginationMeta(page, limit, total),
 	})
 }

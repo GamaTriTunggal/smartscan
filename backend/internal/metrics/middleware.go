@@ -59,11 +59,6 @@ func RecordQRScan(scanType, result string) {
 	QRScansTotal.WithLabelValues(scanType, result).Inc()
 }
 
-// RecordCampaignParticipation records a campaign participation metric
-func RecordCampaignParticipation(mechanism, result string) {
-	CampaignParticipationsTotal.WithLabelValues(mechanism, result).Inc()
-}
-
 // RecordEmailSent records an email sent metric
 func RecordEmailSent(emailType, status string) {
 	EmailsSentTotal.WithLabelValues(emailType, status).Inc()

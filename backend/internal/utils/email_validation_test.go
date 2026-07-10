@@ -261,7 +261,7 @@ func TestIsDisposableEmail(t *testing.T) {
 	}
 }
 
-func TestValidateEmailForCampaign(t *testing.T) {
+func TestValidateAndNormalizeEmail(t *testing.T) {
 	tests := []struct {
 		name        string
 		email       string
@@ -334,20 +334,20 @@ func TestValidateEmailForCampaign(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ValidateEmailForCampaign(tt.email)
+			result, err := ValidateAndNormalizeEmail(tt.email)
 
 			if tt.expectError {
 				if err == nil {
-					t.Errorf("ValidateEmailForCampaign(%q) expected error, got nil", tt.email)
+					t.Errorf("ValidateAndNormalizeEmail(%q) expected error, got nil", tt.email)
 				} else if err.Error() != tt.errorMsg {
-					t.Errorf("ValidateEmailForCampaign(%q) error = %q, want %q", tt.email, err.Error(), tt.errorMsg)
+					t.Errorf("ValidateAndNormalizeEmail(%q) error = %q, want %q", tt.email, err.Error(), tt.errorMsg)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("ValidateEmailForCampaign(%q) unexpected error: %v", tt.email, err)
+					t.Errorf("ValidateAndNormalizeEmail(%q) unexpected error: %v", tt.email, err)
 				}
 				if result != tt.expected {
-					t.Errorf("ValidateEmailForCampaign(%q) = %q, want %q", tt.email, result, tt.expected)
+					t.Errorf("ValidateAndNormalizeEmail(%q) = %q, want %q", tt.email, result, tt.expected)
 				}
 			}
 		})

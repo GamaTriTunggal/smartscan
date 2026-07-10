@@ -113,9 +113,9 @@ func IsDisposableEmail(email string) bool {
 	return disposableEmailDomains[domain]
 }
 
-// ValidateEmailForCampaign validates and normalizes an email for campaign participation.
+// ValidateAndNormalizeEmail validates and normalizes an email address.
 // Returns the normalized email or an error if the email is from a disposable provider.
-func ValidateEmailForCampaign(email string) (string, error) {
+func ValidateAndNormalizeEmail(email string) (string, error) {
 	email = strings.TrimSpace(email)
 	if email == "" {
 		return "", nil // Empty email is allowed (may not be required)

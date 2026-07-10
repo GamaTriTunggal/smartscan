@@ -1,17 +1,17 @@
 package handlers
 
 import (
-	"time"
 	"fmt"
 	"net/http"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
 	"github.com/gamatritunggal/smartscan/backend/internal/services/audit"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -30,9 +30,9 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	User                 UserResponse                  `json:"user"`
-	TokenPair            *utils.TokenPair              `json:"tokens,omitempty"` // Only included if not using cookies
-	ExpiresIn            int                           `json:"expires_in"`       // seconds until access token expires
+	User      UserResponse     `json:"user"`
+	TokenPair *utils.TokenPair `json:"tokens,omitempty"` // Only included if not using cookies
+	ExpiresIn int              `json:"expires_in"`       // seconds until access token expires
 }
 
 type UserResponse struct {
@@ -171,8 +171,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			TenantName:         tenantName,
 			MustChangePassword: user.MustChangePassword,
 		},
-		TokenPair:            tokenPair, // Still include for backward compatibility
-		ExpiresIn:            h.Cfg.JWT.ExpirationHours * 3600,
+		TokenPair: tokenPair, // Still include for backward compatibility
+		ExpiresIn: h.Cfg.JWT.ExpirationHours * 3600,
 	})
 }
 

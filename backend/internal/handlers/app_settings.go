@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )

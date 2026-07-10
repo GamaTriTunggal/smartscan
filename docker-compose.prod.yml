@@ -101,8 +101,6 @@ services:
       - JWT_REFRESH_HOURS=${JWT_REFRESH_HOURS:-168}
       - SERVER_PORT=8080
       - FRONTEND_URL=${FRONTEND_URL}
-      # Email Queue
-      # Midtrans (Payment)
       # Logging
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_FORMAT=${LOG_FORMAT:-json}
@@ -116,7 +114,6 @@ services:
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:-}
       - R2_BUCKET_NAME=${R2_BUCKET_NAME:-}
       - R2_PUBLIC_URL=${R2_PUBLIC_URL:-}
-      # Telegram Notifications
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

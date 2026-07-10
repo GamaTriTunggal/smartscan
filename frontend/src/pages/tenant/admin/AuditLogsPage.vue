@@ -529,6 +529,7 @@ onMounted(() => {
             <option value="delete">Delete</option>
             <option value="export">Export</option>
             <option value="password_reset">Password Reset</option>
+            <option value="threshold_override">Threshold Override</option>
           </select>
         </div>
         <div class="w-36">
@@ -539,8 +540,9 @@ onMounted(() => {
             <option value="user">User</option>
             <option value="password">Password</option>
             <option value="tenant_staff">Staff</option>
-            <option value="campaign">Campaign</option>
             <option value="qr_batch">QR Batch</option>
+            <option value="qr_code">QR Code</option>
+            <option value="product">Product</option>
           </select>
         </div>
         <div class="w-36">

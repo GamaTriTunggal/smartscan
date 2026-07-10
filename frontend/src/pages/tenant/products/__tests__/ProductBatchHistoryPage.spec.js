@@ -107,7 +107,6 @@ const mockProduct = {
   product_name: 'Test Product',
   product_code: 'TP-001',
   warranty_enabled: false,
-  campaign_enabled: false,
 }
 
 const batchWithGeofence = {
@@ -117,7 +116,6 @@ const batchWithGeofence = {
   qr_count: 100,
   production_date: '2026-01-01T00:00:00Z',
   expiry_date: '2027-01-01T00:00:00Z',
-  campaign_id: null,
   geofence_enabled: true,
   geofence_latitude: -6.2088,
   geofence_longitude: 106.8456,
@@ -134,7 +132,6 @@ const batchWithoutGeofence = {
   qr_count: 50,
   production_date: null,
   expiry_date: null,
-  campaign_id: null,
   geofence_enabled: false,
   geofence_latitude: null,
   geofence_longitude: null,
@@ -151,7 +148,6 @@ const batchGeofenceNoLabel = {
   qr_count: 25,
   production_date: null,
   expiry_date: null,
-  campaign_id: null,
   geofence_enabled: true,
   geofence_latitude: -7.25,
   geofence_longitude: 112.75,
@@ -161,23 +157,6 @@ const batchGeofenceNoLabel = {
   scan_count: 0,
 }
 
-const batchWithCampaignAndGeofence = {
-  id: 'batch-camp-geo',
-  batch_name: 'Campaign Geo Batch',
-  batch_code: 'CG-001',
-  qr_count: 200,
-  production_date: null,
-  expiry_date: null,
-  campaign_id: 'campaign-uuid-1',
-  geofence_enabled: true,
-  geofence_latitude: -6.2088,
-  geofence_longitude: 106.8456,
-  geofence_radius_km: 25,
-  geofence_label: 'Bandung Zone',
-  deleted_at: null,
-  scan_count: 10,
-}
-
 const deletedBatchWithGeofence = {
   id: 'batch-deleted-geo',
   batch_name: 'Deleted Geo Batch',
@@ -185,7 +164,6 @@ const deletedBatchWithGeofence = {
   qr_count: 75,
   production_date: null,
   expiry_date: null,
-  campaign_id: null,
   geofence_enabled: true,
   geofence_latitude: -6.9,
   geofence_longitude: 107.6,
@@ -273,16 +251,6 @@ describe('ProductBatchHistoryPage', () => {
       await geoBadge.trigger('click')
 
       expect(mockPush).toHaveBeenCalledWith('/tenant/qr-batches/batch-geo-1')
-    })
-
-    it('should show both Campaign and Geofence badges when both are present', async () => {
-      setupMockAPI([batchWithCampaignAndGeofence])
-      const wrapper = createWrapper()
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Campaign')
-      expect(wrapper.text()).toContain('Bandung Zone')
-      expect(wrapper.text()).toContain('25 km')
     })
 
     it('should show geofence badge on deleted batches', async () => {

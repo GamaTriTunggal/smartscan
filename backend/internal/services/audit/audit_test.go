@@ -172,12 +172,12 @@ func TestLog_ComplexNestedValues(t *testing.T) {
 	defer cleanupAuditLog(testDB, entityID)
 
 	complexData := map[string]interface{}{
-		"name": "Test Campaign",
-		"prizes": []map[string]interface{}{
-			{"prize_name": "Gold", "probability": 0.1},
-			{"prize_name": "Silver", "probability": 0.3},
+		"product_name": "Test Product",
+		"certifications": []map[string]interface{}{
+			{"cert_name": "ISO 9001", "display_order": 1},
+			{"cert_name": "Halal", "display_order": 2},
 		},
-		"settings": map[string]interface{}{
+		"display_config": map[string]interface{}{
 			"enabled": true,
 			"limit":   100,
 		},
@@ -185,7 +185,7 @@ func TestLog_ComplexNestedValues(t *testing.T) {
 
 	Log(testDB, Entry{
 		Action:     models.ActionTypeCreate,
-		EntityType: "campaign",
+		EntityType: "product",
 		EntityID:   &entityID,
 		NewValues:  complexData,
 		IPAddress:  "10.0.0.1",
@@ -199,15 +199,15 @@ func TestLog_ComplexNestedValues(t *testing.T) {
 
 	var newVals map[string]interface{}
 	require.NoError(t, json.Unmarshal(log.NewValues, &newVals))
-	assert.Equal(t, "Test Campaign", newVals["name"])
+	assert.Equal(t, "Test Product", newVals["product_name"])
 
-	prizes, ok := newVals["prizes"].([]interface{})
-	require.True(t, ok, "prizes should be an array")
-	assert.Len(t, prizes, 2)
+	certs, ok := newVals["certifications"].([]interface{})
+	require.True(t, ok, "certifications should be an array")
+	assert.Len(t, certs, 2)
 
-	settings, ok := newVals["settings"].(map[string]interface{})
-	require.True(t, ok, "settings should be a map")
-	assert.Equal(t, true, settings["enabled"])
+	displayConfig, ok := newVals["display_config"].(map[string]interface{})
+	require.True(t, ok, "display_config should be a map")
+	assert.Equal(t, true, displayConfig["enabled"])
 }
 
 func TestLog_NilUserAndTenant(t *testing.T) {

@@ -27,35 +27,6 @@ func TestGenerateSecureBytes(t *testing.T) {
 	}
 }
 
-func TestGenerateSecureOTP(t *testing.T) {
-	tests := []struct {
-		name   string
-		length int
-	}{
-		{"4 digit OTP", 4},
-		{"6 digit OTP", 6},
-		{"8 digit OTP", 8},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			otp, err := GenerateSecureOTP(tt.length)
-			if err != nil {
-				t.Fatalf("GenerateSecureOTP(%d) failed: %v", tt.length, err)
-			}
-			if len(otp) != tt.length {
-				t.Errorf("Expected OTP length %d, got %d", tt.length, len(otp))
-			}
-			// Verify all characters are digits
-			for _, c := range otp {
-				if c < '0' || c > '9' {
-					t.Errorf("OTP contains non-digit character: %c", c)
-				}
-			}
-		})
-	}
-}
-
 func TestGenerateSecureTempPassword(t *testing.T) {
 	password, err := GenerateSecureTempPassword(8)
 	if err != nil {
@@ -101,21 +72,5 @@ func TestGenerateRandomHexWithFallback(t *testing.T) {
 		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
 			t.Errorf("Hex contains non-hex character: %c", c)
 		}
-	}
-}
-
-func TestOTPUniqueness(t *testing.T) {
-	// Generate 100 OTPs and ensure they're not all the same
-	otps := make(map[string]bool)
-	for i := 0; i < 100; i++ {
-		otp, err := GenerateSecureOTP(6)
-		if err != nil {
-			t.Fatalf("GenerateSecureOTP failed: %v", err)
-		}
-		otps[otp] = true
-	}
-	// We should have many unique OTPs (statistically nearly 100)
-	if len(otps) < 90 {
-		t.Errorf("Expected at least 90 unique OTPs, got %d", len(otps))
 	}
 }

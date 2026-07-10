@@ -8,11 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -305,7 +305,7 @@ func TestRefreshToken_Success(t *testing.T) {
 		user.ID,
 		user.Email,
 		string(user.UserType),
-		"super_admin",
+		"admin",
 		nil,
 		testCfg.JWT.ExpirationHours,
 		testCfg.JWT.RefreshHours,
@@ -441,7 +441,7 @@ func TestLogout_Success(t *testing.T) {
 		user.ID,
 		user.Email,
 		string(user.UserType),
-		"super_admin",
+		"admin",
 		nil,
 		testCfg.JWT.ExpirationHours,
 		testCfg.JWT.RefreshHours,

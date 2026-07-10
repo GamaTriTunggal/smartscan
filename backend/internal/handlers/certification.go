@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -63,7 +63,7 @@ func (h *CertificationHandler) ListCertificationTypes(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Certification types retrieved", gin.H{
 		"certification_types": types,
-		"pagination": utils.PaginationMeta(page, limit, total),
+		"pagination":          utils.PaginationMeta(page, limit, total),
 	})
 }
 
@@ -144,14 +144,14 @@ func (h *CertificationHandler) UpdateCertificationType(c *gin.Context) {
 	}
 
 	var req struct {
-		CountryCode  *string  `json:"country_code"`
-		Code         string   `json:"code"`
-		Name         string   `json:"name"`
-		Description  *string  `json:"description"`
-		LogoURL      *string  `json:"logo_url"`
-		WebsiteURL   *string  `json:"website_url"`
-		IsActive     *bool    `json:"is_active"`
-		DisplayOrder *int     `json:"display_order"`
+		CountryCode  *string `json:"country_code"`
+		Code         string  `json:"code"`
+		Name         string  `json:"name"`
+		Description  *string `json:"description"`
+		LogoURL      *string `json:"logo_url"`
+		WebsiteURL   *string `json:"website_url"`
+		IsActive     *bool   `json:"is_active"`
+		DisplayOrder *int    `json:"display_order"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request", err)
@@ -258,10 +258,6 @@ func (h *CertificationHandler) RestoreCertificationType(c *gin.Context) {
 }
 
 // ==================== CERTIFICATION REQUESTS (Super Admin Review) ====================
-
-
-
-
 
 // ==================== TENANT ENDPOINTS ====================
 
@@ -573,5 +569,3 @@ func (h *CertificationHandler) ReorderProductCertifications(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "Product certifications reordered", nil)
 }
-
-

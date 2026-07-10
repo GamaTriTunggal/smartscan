@@ -69,7 +69,7 @@ func buildGenerationStatusResponse(batch *models.QRBatch, queueRec *models.QRGen
 	} else {
 		// No queue record yet
 		if batch.Status == models.QRBatchStatusCompleted {
-			// Legacy sync-generated batch or static product
+			// Legacy sync-generated batch
 			resp.GeneratedCount = batch.QRCount
 			resp.ProgressPercent = 100
 		}

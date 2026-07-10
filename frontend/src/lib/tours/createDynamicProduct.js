@@ -6,7 +6,7 @@ import {
 export const createDynamicProductTour = {
   id: 'create-dynamic-product',
   name: 'Create Your First Dynamic QR Product',
-  description: 'Learn how to create a product, generate QR code batches, and request printing — step by step.',
+  description: 'Learn how to create a product and generate QR code batches — step by step.',
   estimatedMinutes: 3,
   steps: [
     // ── Step 0: Sidebar → Dynamic QR ──
@@ -145,7 +145,7 @@ export const createDynamicProductTour = {
       },
     },
 
-    // ── Step 16: Click "Create Batch" ──
+    // ── Step 16: Click "Create Batch" (final step) ──
     {
       id: 'create-batch-btn',
       expectedRoute: '/tenant/products/dynamic',
@@ -157,20 +157,6 @@ export const createDynamicProductTour = {
       },
       type: 'interactive',
       insideModal: true,
-      waitForEl: true,
-    },
-
-    // ── Step 17: Request Printing (final step) ──
-    {
-      id: 'request-printing-btn',
-      expectedRoute: '/tenant/products/:productId/batches',
-      selector: '[data-tour="request-printing-btn"]',
-      popover: {
-        title: 'Request Printing',
-        description: 'After creating a batch, you can request printing here. Our team will contact you to discuss specifications and pricing.',
-        side: 'left',
-      },
-      type: 'info',
       waitForEl: true,
     },
   ],

@@ -14,7 +14,7 @@ const (
 	CircuitHalfOpen CircuitState = "half-open" // Testing if service recovered
 )
 
-// CircuitBreaker implements the circuit breaker pattern for SMTP protection
+// CircuitBreaker implements the circuit breaker pattern for queue-worker protection
 type CircuitBreaker struct {
 	mu sync.RWMutex
 

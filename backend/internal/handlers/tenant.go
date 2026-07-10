@@ -9,6 +9,7 @@ import (
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/models"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
+	"github.com/gamatritunggal/smartscan/backend/internal/services/audit"
 	"github.com/gamatritunggal/smartscan/backend/internal/utils"
 	"gorm.io/gorm"
 )
@@ -97,7 +98,7 @@ func (h *TenantHandler) UpdateMyTenant(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "Tenant updated", tenant)
 }
 
-// ResetTenantStaffPassword resets a tenant staff member's password (Super Admin only)
+// ResetTenantStaffPassword resets a tenant staff member's password (Admin only)
 func (h *TenantHandler) ResetTenantStaffPassword(c *gin.Context) {
 	tenantID, ok := utils.GetTenantUUID(c)
 	if !ok {
@@ -163,6 +164,8 @@ func (h *TenantHandler) ResetTenantStaffPassword(c *gin.Context) {
 	// refresh token resume minting access tokens once the marker expired. Matches
 	// the other revocation call sites (auth.go ChangePassword, staff.go).
 	utils.NewTokenBlacklist().RevokeUserTokens(staff.UserID.String(), time.Duration(h.Cfg.JWT.RefreshHours)*time.Hour)
+
+	audit.LogFromContext(c, h.DB, models.ActionTypePasswordReset, "tenant_staff", &staff.ID, nil, nil)
 
 	// The temp password is returned ONCE to the admin, who hands it to the staff
 	// member directly. The staff member must change it on first login.

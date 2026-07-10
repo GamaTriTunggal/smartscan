@@ -93,7 +93,7 @@ func (h *StaffHandler) CreateTenantStaff(c *gin.Context) {
 	}
 
 	// Validate and normalize email (disposable check + Gmail normalization + +suffix removal)
-	normalizedEmail, err := utils.ValidateEmailForCampaign(req.Email)
+	normalizedEmail, err := utils.ValidateAndNormalizeEmail(req.Email)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, err.Error(), nil)
 		return

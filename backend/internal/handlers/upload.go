@@ -51,7 +51,7 @@ func (h *UploadHandler) UploadBackground(c *gin.Context) {
 		return
 	}
 
-	// Only "landing" type is supported (campaign backgrounds removed)
+	// Only "landing" type is supported
 	uploadType := c.DefaultPostForm("type", "landing")
 	if uploadType != "landing" {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid upload type. Only 'landing' is supported", nil)
@@ -129,7 +129,7 @@ func (h *UploadHandler) DeleteBackground(c *gin.Context) {
 		return
 	}
 
-	// Only "landing" type is supported (campaign backgrounds removed)
+	// Only "landing" type is supported
 	uploadType := c.DefaultQuery("type", "landing")
 	if uploadType != "landing" {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid upload type. Only 'landing' is supported", nil)
@@ -462,7 +462,7 @@ func (h *UploadHandler) ListTenantBackgrounds(c *gin.Context) {
 
 	var files []gin.H
 
-	// Scan landing directory only (campaign backgrounds removed)
+	// Scan landing directory only
 	dirPath := filepath.Join(h.Cfg.UploadPath, "backgrounds", "tenants", tenantID, "landing")
 	entries, err := os.ReadDir(dirPath)
 	if err == nil {
@@ -534,75 +534,6 @@ func (h *UploadHandler) ServeCounterfeitReportFile(c *gin.Context) {
 		contentType = "image/png"
 	case ".webp":
 		contentType = "image/webp"
-	}
-
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("Content-Security-Policy", "default-src 'none'")
-	c.Header("Cache-Control", "public, max-age=86400")
-	c.Header("Content-Type", contentType)
-	c.File(fullPath)
-}
-
-// ServeMsgProofFile serves topup proof images
-// GET /uploads/msg-proofs/*filepath
-func (h *UploadHandler) ServeMsgProofFile(c *gin.Context) {
-	h.serveMessagingFile(c, "msg-proofs", "image")
-}
-
-// ServeMsgImportFile serves import CSV files and error reports
-// GET /uploads/msg-imports/*filepath
-func (h *UploadHandler) ServeMsgImportFile(c *gin.Context) {
-	h.serveMessagingFile(c, "msg-imports", "file")
-}
-
-// serveMessagingFile is a shared helper for serving messaging upload files
-func (h *UploadHandler) serveMessagingFile(c *gin.Context, subDir, fileType string) {
-	filePath := c.Param("filepath")
-	if filePath == "" {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	filePath = strings.TrimPrefix(filePath, "/")
-	fullPath := filepath.Join(h.Cfg.UploadPath, subDir, filePath)
-
-	if !isPathSafe(filepath.Join(h.Cfg.UploadPath, subDir), fullPath) {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	// Tenant isolation: path structure is {tenant_id}/{filename}
-	parts := strings.Split(filePath, "/")
-	if len(parts) >= 1 {
-		pathTenantID := parts[0]
-		if userTenantID, exists := c.Get("tenant_id"); exists {
-			if tid, ok := userTenantID.(string); ok && tid != pathTenantID {
-				// Also check uuid.UUID type
-				c.AbortWithStatus(http.StatusForbidden)
-				return
-			}
-			if tid, ok := userTenantID.(uuid.UUID); ok && tid.String() != pathTenantID {
-				c.AbortWithStatus(http.StatusForbidden)
-				return
-			}
-		}
-	}
-
-	// Determine content type
-	ext := strings.ToLower(filepath.Ext(fullPath))
-	contentType := "application/octet-stream"
-	switch ext {
-	case ".jpg", ".jpeg":
-		contentType = "image/jpeg"
-	case ".png":
-		contentType = "image/png"
-	case ".csv":
-		contentType = "text/csv"
 	}
 
 	c.Header("X-Content-Type-Options", "nosniff")

@@ -24,7 +24,6 @@ const (
 	InteractionSubcategoryWarehouseScan     InteractionSubcategory = "warehouse_scan"
 	InteractionSubcategoryProductValidation InteractionSubcategory = "product_validation"
 	InteractionSubcategoryWarrantyActivation InteractionSubcategory = "warranty_activation"
-	InteractionSubcategoryCampaign          InteractionSubcategory = "campaign"
 )
 
 // InteractionStatus enum
@@ -38,8 +37,7 @@ const (
 // Interaction represents all QR code interactions
 type Interaction struct {
 	ID                     uuid.UUID              `gorm:"type:uuid;primary_key;default:uuidv7()" json:"id"`
-	QRCodeID               *uuid.UUID             `gorm:"type:uuid" json:"qr_code_id,omitempty"` // For dynamic QR (nullable for static products)
-	ProductID              *uuid.UUID             `gorm:"type:uuid;index" json:"product_id,omitempty"` // For static QR products
+	QRCodeID               *uuid.UUID             `gorm:"type:uuid" json:"qr_code_id,omitempty"`
 	TenantID               uuid.UUID              `gorm:"type:uuid;not null" json:"tenant_id"`
 	InteractionCategory    InteractionCategory    `gorm:"type:varchar(50)" json:"interaction_category"`
 	InteractionSubcategory InteractionSubcategory `gorm:"type:varchar(50)" json:"interaction_subcategory"`
@@ -54,7 +52,6 @@ type Interaction struct {
 
 	// Relations
 	QRCode             *QRCode       `gorm:"foreignKey:QRCodeID" json:"qr_code,omitempty"`
-	Product            *Product      `gorm:"foreignKey:ProductID" json:"product,omitempty"` // For static QR products
 	Tenant             *Tenant       `gorm:"foreignKey:TenantID" json:"tenant,omitempty"`
 	ScannedByUser      *User         `gorm:"foreignKey:ScannedBy" json:"scanned_by_user,omitempty"`
 	ValidationTemplate *PageTemplate `gorm:"foreignKey:ValidationTemplateID" json:"validation_template,omitempty"`

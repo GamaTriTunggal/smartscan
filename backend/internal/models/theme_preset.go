@@ -11,8 +11,7 @@ import (
 type PresetType string
 
 const (
-	PresetTypeLanding  PresetType = "landing"
-	PresetTypeCampaign PresetType = "campaign"
+	PresetTypeLanding PresetType = "landing"
 )
 
 // ThemePreset represents admin-managed background theme presets

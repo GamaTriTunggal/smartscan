@@ -570,7 +570,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="participation-heatmap">
+  <div class="scan-heatmap">
     <!-- Aggregate / Country Controls -->
     <div v-if="showCountrySelector || availableCountries.length > 0" class="flex flex-wrap gap-3 mb-4">
       <!-- Country Filter Dropdown -->
@@ -739,7 +739,7 @@ onUnmounted(() => {
 </template>
 
 <style>
-.participation-heatmap {
+.scan-heatmap {
   position: relative;
 }
 

@@ -31,8 +31,6 @@ var validSectionIDs = map[string]bool{
 	"website_link":     true,
 	"description":      true,
 	"warranty_button":  true,
-	"campaign_button":  true,
-	"loyalty_cta":      true,
 }
 
 // Maximum size for custom_fields JSON (10KB)
@@ -217,7 +215,7 @@ type UpdateTemplateRequest struct {
 // ensureDefaultTemplates creates default validation and warranty templates if they don't exist
 func (h *TemplateHandler) ensureDefaultTemplates(tenantID uuid.UUID) error {
 	// Default custom_fields for validation templates (must match CSS colors)
-	defaultValidationCustomFields := datatypes.JSON(`{"header":{"bg_color":"#3b82f6","badge_text":"Authentic Product","badge_bg_color":"#22c55e","badge_text_color":"#ffffff","logo_enabled":false},"styling":{"card_bg_color":"#ffffff","field_bg_color":"#f9fafb","text_color":"#1f2937"},"warranty_button":{"text":"Activate Warranty","bg_color":"#9333ea","text_color":"#ffffff"},"campaign_button":{"text":"Join Campaign","bg_color":"#f59e0b","text_color":"#ffffff"},"loyalty_cta":{"text":"Earn Points!","bg_color":"#f59e0b","text_color":"#ffffff"}}`)
+	defaultValidationCustomFields := datatypes.JSON(`{"header":{"bg_color":"#3b82f6","badge_text":"Authentic Product","badge_bg_color":"#22c55e","badge_text_color":"#ffffff","logo_enabled":false},"styling":{"card_bg_color":"#ffffff","field_bg_color":"#f9fafb","text_color":"#1f2937"},"warranty_button":{"text":"Activate Warranty","bg_color":"#9333ea","text_color":"#ffffff"}}`)
 
 	// Check and create validation template
 	var validationTemplate models.PageTemplate
@@ -253,7 +251,7 @@ func (h *TemplateHandler) ensureDefaultTemplates(tenantID uuid.UUID) error {
 		{{action_buttons_section}}
 	</div>
 </div>`,
-				CSSContent: `.validation-page{font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;min-height:100vh;background:#f3f4f6}.header{background:#3b82f6;padding:24px 16px;text-align:center}.logo{max-height:60px;margin-bottom:12px}.badge{display:inline-flex;align-items:center;gap:6px;background:#22c55e;color:white;padding:6px 12px;border-radius:9999px;font-size:12px;font-weight:500}.badge-icon{width:14px;height:14px}.content{padding:16px}.product-section{text-align:center;margin-bottom:16px}.product-name{font-size:20px;font-weight:700;color:#1f2937;margin:0 0 4px}.product-code{font-size:14px;color:#6b7280;margin:0}.field-card{background:white;border-radius:8px;padding:12px;margin-bottom:12px}.field-label{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0 0 4px}.field-value{font-size:16px;font-weight:500;color:#1f2937;margin:0}.section-card{background:white;border-radius:8px;padding:12px;margin-bottom:12px}.section-title{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0 0 8px;font-weight:600}.cert-list{display:flex;flex-wrap:wrap;gap:8px}.cert-item{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#f9fafb;border-radius:6px;text-decoration:none;color:#374151;font-size:13px}.cert-logo{width:20px;height:20px;object-fit:contain}.cert-name{font-weight:500}.social-list{display:flex;flex-wrap:wrap;gap:8px}.social-item{display:flex;align-items:center;gap:6px;padding:8px 12px;background:#f9fafb;border-radius:6px;text-decoration:none;color:#374151;font-size:13px}.social-name{font-weight:500}.action-buttons{margin-top:16px;display:flex;flex-direction:column;gap:12px}.btn-warranty{display:block;width:100%;padding:14px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}.btn-warranty:hover{background:#7c22ce}.btn-campaign{display:block;width:100%;padding:14px;background:#f59e0b;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}.btn-campaign:hover{background:#d97706}.campaign-notice{margin-top:12px;padding:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#92400e;line-height:1.4}.campaign-notice-icon{font-size:16px;line-height:1;margin-top:1px;flex-shrink:0}`,
+				CSSContent: `.validation-page{font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;min-height:100vh;background:#f3f4f6}.header{background:#3b82f6;padding:24px 16px;text-align:center}.logo{max-height:60px;margin-bottom:12px}.badge{display:inline-flex;align-items:center;gap:6px;background:#22c55e;color:white;padding:6px 12px;border-radius:9999px;font-size:12px;font-weight:500}.badge-icon{width:14px;height:14px}.content{padding:16px}.product-section{text-align:center;margin-bottom:16px}.product-name{font-size:20px;font-weight:700;color:#1f2937;margin:0 0 4px}.product-code{font-size:14px;color:#6b7280;margin:0}.field-card{background:white;border-radius:8px;padding:12px;margin-bottom:12px}.field-label{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0 0 4px}.field-value{font-size:16px;font-weight:500;color:#1f2937;margin:0}.section-card{background:white;border-radius:8px;padding:12px;margin-bottom:12px}.section-title{font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0 0 8px;font-weight:600}.cert-list{display:flex;flex-wrap:wrap;gap:8px}.cert-item{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#f9fafb;border-radius:6px;text-decoration:none;color:#374151;font-size:13px}.cert-logo{width:20px;height:20px;object-fit:contain}.cert-name{font-weight:500}.social-list{display:flex;flex-wrap:wrap;gap:8px}.social-item{display:flex;align-items:center;gap:6px;padding:8px 12px;background:#f9fafb;border-radius:6px;text-decoration:none;color:#374151;font-size:13px}.social-name{font-weight:500}.action-buttons{margin-top:16px;display:flex;flex-direction:column;gap:12px}.btn-warranty{display:block;width:100%;padding:14px;background:#9333ea;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;text-align:center;text-decoration:none;cursor:pointer}.btn-warranty:hover{background:#7c22ce}`,
 				CustomFields: defaultValidationCustomFields,
 				IsActive:     true,
 			}
@@ -1248,7 +1246,7 @@ func (h *TemplateHandler) GetTenantDefaults(c *gin.Context) {
 }
 
 // returnDefaultTemplate returns nil template to let frontend use Vue component default
-// The Vue component has built-in warranty/campaign buttons that the old HTML template lacked
+// The Vue component has a built-in warranty button that the old HTML template lacked
 func (h *TemplateHandler) returnDefaultTemplate(c *gin.Context, templateType string, qrCode *models.QRCode, data gin.H) {
 	utils.SuccessResponse(c, http.StatusOK, "Using default Vue component", gin.H{
 		"template": nil,

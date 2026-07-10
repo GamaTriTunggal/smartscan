@@ -10,7 +10,7 @@ func TestGenerateTokenPair_Success(t *testing.T) {
 	userID := uuid.Must(uuid.NewV7())
 	email := "test@example.com"
 	userType := "tenant_staff"
-	role := "super_admin"
+	role := "admin"
 	secret := "test-secret-key"
 
 	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168, false)
@@ -62,7 +62,7 @@ func TestValidateToken_Success(t *testing.T) {
 	userID := uuid.Must(uuid.NewV7())
 	email := "test@example.com"
 	userType := "tenant_staff"
-	role := "super_admin"
+	role := "admin"
 	secret := "test-secret-key"
 
 	tokenPair, err := GenerateTokenPair(secret, userID, email, userType, role, nil, 24, 168, false)

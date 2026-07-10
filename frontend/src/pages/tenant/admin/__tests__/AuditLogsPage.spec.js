@@ -111,7 +111,7 @@ const mockStatsResponse = {
     ],
     by_entity: [
       { entity_type: 'user', count: 600 },
-      { entity_type: 'campaign', count: 200 }
+      { entity_type: 'qr_batch', count: 200 }
     ],
     daily_trend: [
       { date: '2026-03-01', count: 45 },

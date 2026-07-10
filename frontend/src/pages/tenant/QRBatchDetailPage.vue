@@ -9,7 +9,7 @@ import { isTerminalStatus, isInProgressStatus } from '@/stores/qrGeneration'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
 import BatchPdfDownload from '@/components/products/BatchPdfDownload.vue'
-import ParticipationHeatmap from '@/components/ParticipationHeatmap.vue'
+import ScanHeatmap from '@/components/ScanHeatmap.vue'
 import GeofenceMapPicker from '@/components/GeofenceMapPicker.vue'
 import QRGenerationProgress from '@/components/tenant/QRGenerationProgress.vue'
 import { Line } from 'vue-chartjs'
@@ -991,7 +991,7 @@ onUnmounted(() => {
 
         <!-- Heatmap + summary bar -->
         <template v-else>
-          <ParticipationHeatmap
+          <ScanHeatmap
             :locations="heatmapLocations"
             :geofence-violations="heatmapGeofenceViolations"
             :geofence-zones="geofenceZone"

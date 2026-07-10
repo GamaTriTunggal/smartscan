@@ -517,7 +517,6 @@ func (h *CounterfeitHandler) GetCounterfeitSettings(c *gin.Context) {
 				"end_user_scan_max":         3,
 				"velocity_check_enabled":    false,
 				"max_speed_kmh":             1000,
-				"alert_on_detection":        true,
 				"auto_flag_suspicious":      true,
 			})
 			return
@@ -549,7 +548,6 @@ func (h *CounterfeitHandler) UpdateCounterfeitSettings(c *gin.Context) {
 		EndUserScanMax       int  `json:"end_user_scan_max"`
 		VelocityCheckEnabled bool `json:"velocity_check_enabled"`
 		MaxSpeedKmh          int  `json:"max_speed_kmh"`
-		AlertOnDetection     bool `json:"alert_on_detection"`
 		AutoFlagSuspicious   bool `json:"auto_flag_suspicious"`
 	}
 
@@ -564,7 +562,6 @@ func (h *CounterfeitHandler) UpdateCounterfeitSettings(c *gin.Context) {
 		"end_user_scan_max":      input.EndUserScanMax,
 		"velocity_check_enabled": input.VelocityCheckEnabled,
 		"max_speed_kmh":          input.MaxSpeedKmh,
-		"alert_on_detection":     input.AlertOnDetection,
 		"auto_flag_suspicious":   input.AutoFlagSuspicious,
 	})
 	if err != nil {

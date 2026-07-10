@@ -131,19 +131,6 @@ func CSRFProtection(allowedOrigins []string) gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
-		if _, err := c.Cookie("loyalty_access_token"); err == nil {
-			// Has loyalty auth cookie - this is a browser request
-			c.Header("X-CSRF-Error", "Missing origin or referer header")
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-		if _, err := c.Cookie("distributor_access_token"); err == nil {
-			// Has distributor auth cookie - this is a browser request
-			c.Header("X-CSRF-Error", "Missing origin or referer header")
-			c.AbortWithStatus(http.StatusForbidden)
-			return
-		}
-
 		// No auth cookies - allow for stateless API clients
 		c.Next()
 	}

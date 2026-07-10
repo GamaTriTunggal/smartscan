@@ -167,7 +167,7 @@ const displayUrl = computed(() => previewUrl.value || props.modelValue)
           </svg>
         </button>
       </div>
-      <p class="text-xs text-gray-500 mt-1">Logo will appear at the top of your campaign page</p>
+      <p class="text-xs text-gray-500 mt-1">Logo will appear at the top of your landing page</p>
     </div>
 
     <!-- Upload Error -->

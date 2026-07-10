@@ -209,7 +209,6 @@ func seedDemo(db *gorm.DB, cfg *config.Config) {
 					"end_user_scan_max":      3,
 					"velocity_check_enabled": false,
 					"max_speed_kmh":          1000,
-					"alert_on_detection":     true,
 					"auto_flag_suspicious":   true,
 				}),
 			},

@@ -5,7 +5,7 @@ import { useAPI, isLogoutInProgress } from '@/composables/useAPI'
 import { useDateTime } from '@/composables/useDateTime'
 import Card from '@/components/ui/Card.vue'
 import Button from '@/components/ui/Button.vue'
-import ParticipationHeatmap from '@/components/ParticipationHeatmap.vue'
+import ScanHeatmap from '@/components/ScanHeatmap.vue'
 import { Bar, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -597,7 +597,7 @@ onMounted(() => {
         </div>
 
         <template v-else-if="heatmapLocations.length > 0">
-          <ParticipationHeatmap :locations="heatmapLocations" :geofence-violations="heatmapGeofenceViolations" height="300px" />
+          <ScanHeatmap :locations="heatmapLocations" :geofence-violations="heatmapGeofenceViolations" height="300px" />
         </template>
 
         <div v-else class="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">

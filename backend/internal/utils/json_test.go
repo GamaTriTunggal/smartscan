@@ -189,7 +189,7 @@ func TestDeepMergeJSON_RealTemplateConfig(t *testing.T) {
 		},
 		"section_order": []string{
 			"images", "videos", "social_accounts", "certifications",
-			"website_link", "description", "warranty_button", "campaign_button",
+			"website_link", "description", "warranty_button",
 		},
 	})
 

@@ -240,7 +240,7 @@ func WarehouseStaffOrAdmin() gin.HandlerFunc {
 
 // SetTenantStaffID middleware looks up the tenant_staff record by user_id
 // and sets staff_id in context. Required for handlers that need to track
-// which staff member performed an action (e.g., claims, notes).
+// which staff member performed an action (e.g., audit logging).
 func SetTenantStaffID(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only process for tenant_staff users

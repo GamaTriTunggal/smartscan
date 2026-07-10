@@ -71,11 +71,6 @@ services:
       # Logging
       - LOG_LEVEL=${LOG_LEVEL}
       - LOG_FORMAT=${LOG_FORMAT}
-      # Telegram Notifications
-      # WhatsApp Provider Selection (meta, zenziva, stub)
-      # Zenziva WA OTP (fallback)
-      # Meta WhatsApp Cloud API
-      # Geocoding (BigDataCloud)
       # Cloudflare R2 Storage
       - R2_ENABLED=${R2_ENABLED:-false}
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:-}

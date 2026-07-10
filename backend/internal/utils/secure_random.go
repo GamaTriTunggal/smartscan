@@ -28,7 +28,7 @@ func initMathRand() {
 
 // GenerateSecureBytes generates cryptographically secure random bytes.
 // Returns error if crypto/rand fails - caller must handle appropriately.
-// DO NOT use fallback for security-critical operations (OTP, passwords, auth tokens).
+// DO NOT use fallback for security-critical operations (passwords, auth tokens).
 func GenerateSecureBytes(length int) ([]byte, error) {
 	b := make([]byte, length)
 	if _, err := rand.Read(b); err != nil {
@@ -45,24 +45,6 @@ func GenerateSecureHex(byteLength int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-// GenerateSecureOTP generates a cryptographically secure numeric OTP.
-// Returns error if crypto/rand fails - NEVER falls back to math/rand.
-// This is a SECURITY-CRITICAL function.
-func GenerateSecureOTP(length int) (string, error) {
-	const digits = "0123456789"
-	result := make([]byte, length)
-
-	for i := 0; i < length; i++ {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
-		if err != nil {
-			return "", fmt.Errorf("%w: failed to generate OTP digit: %v", ErrEntropyUnavailable, err)
-		}
-		result[i] = digits[n.Int64()]
-	}
-
-	return string(result), nil
 }
 
 // GenerateSecureTempPassword generates a cryptographically secure temporary password.

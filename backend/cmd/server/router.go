@@ -4,14 +4,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
 	"github.com/gamatritunggal/smartscan/backend/internal/handlers"
 	"github.com/gamatritunggal/smartscan/backend/internal/metrics"
 	"github.com/gamatritunggal/smartscan/backend/internal/middleware"
 	"github.com/gamatritunggal/smartscan/backend/internal/sentry"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gorm.io/gorm"
 )
 
@@ -150,7 +150,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			auth.POST("/logout", authHandler.Logout)
 		}
 
-
 		// Public validation routes (no auth required) - with moderate rate limiting
 		public := v1.Group("/public")
 		public.Use(middleware.RateLimiter(middleware.PublicRateLimit))
@@ -169,8 +168,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			// Branding (app settings)
 			public.GET("/branding", appSettingsHandler.GetBrandingPublic)
 			public.GET("/company-contact", companyContactHandler.GetPublic)
-
-			// WhatsApp contact (for "Chat with us" button)
 
 			// Location data (for warranty/registration forms)
 			public.GET("/locations/countries", locationMasterHandler.ListCountries)
@@ -201,8 +198,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			protected.GET("/me", authHandler.GetMe)
 			protected.PUT("/me", authHandler.UpdateMe)
 			protected.POST("/auth/change-password", authHandler.ChangePassword)
-
-
 
 			// Tenant routes (Tenant staff only)
 			tenant := protected.Group("/tenant")
@@ -416,8 +411,8 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					templates.PUT("/:id", templateHandler.UpdateTemplate)
 					templates.DELETE("/:id", templateHandler.DeleteTemplate)
 					templates.POST("/:id/set-default", templateHandler.SetAsDefault)
-				templates.POST("/:id/logo", templateHandler.UploadTemplateLogo)
-				templates.DELETE("/:id/logo", templateHandler.DeleteTemplateLogo)
+					templates.POST("/:id/logo", templateHandler.UploadTemplateLogo)
+					templates.DELETE("/:id/logo", templateHandler.DeleteTemplateLogo)
 				}
 
 				// Product Certifications (Admin only)
@@ -441,8 +436,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					certRoutes.PUT("/products/:product_id/:cert_id", certificationHandler.UpdateProductCertification)
 					certRoutes.DELETE("/products/:product_id/:cert_id", certificationHandler.RemoveProductCertification)
 					certRoutes.PUT("/products/:product_id/reorder", certificationHandler.ReorderProductCertifications)
-
-					// Request new certification type
 				}
 
 				// Product Social Media Links (Admin only)
@@ -466,11 +459,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					socialRoutes.POST("/platforms/:id/restore", socialMediaHandler.RestoreSocialMediaPlatform)
 				}
 
-	
-
-
-
-				// Warranty Admin routes (After Sales Staff or Admin)
+				// Warranty Admin routes (Admin only)
 				warranties := tenant.Group("/warranties")
 				warranties.Use(middleware.TenantAdminOnly())
 				{
@@ -497,7 +486,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					// Get geolocations for map visualization
 					counterfeit.GET("/:id/geolocations", counterfeitHandler.GetCounterfeitGeolocations)
 					// Resolve detection
-	
+
 					// Mark as false positive
 					counterfeit.POST("/:id/false-positive", counterfeitHandler.MarkAsFalsePositive)
 					// Override threshold (false positive with new threshold)
@@ -511,7 +500,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					counterfeit.GET("/reports/stats", counterfeitHandler.GetCounterfeitReportStats)
 					counterfeit.GET("/reports/:id", counterfeitHandler.GetCounterfeitReport)
 				}
-
 
 				// Geofence Distribution Zone routes (Admin only)
 				geofence := tenant.Group("/geofence")
@@ -528,20 +516,14 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 					// Zone templates
 					zoneTemplates := geofence.Group("/zone-templates")
-						{
+					{
 						zoneTemplates.GET("", geofenceHandler.ListZoneTemplates)
 						zoneTemplates.POST("", geofenceHandler.CreateZoneTemplate)
 						zoneTemplates.PUT("/:id", geofenceHandler.UpdateZoneTemplate)
 						zoneTemplates.DELETE("/:id", geofenceHandler.DeleteZoneTemplate)
-					zoneTemplates.POST("/:id/restore", geofenceHandler.RestoreZoneTemplate)
+						zoneTemplates.POST("/:id/restore", geofenceHandler.RestoreZoneTemplate)
 					}
 				}
-
-
-
-
-
-
 
 			}
 

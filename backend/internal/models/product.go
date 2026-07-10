@@ -39,7 +39,6 @@ type Product struct {
 	DefaultWarrantyTemplateID   *uuid.UUID `gorm:"type:uuid" json:"default_warranty_template_id,omitempty"`
 	// Warranty enabled (product-level setting)
 	WarrantyEnabled bool `gorm:"default:false" json:"warranty_enabled"`
-	// QR Type: dynamic (unique per unit) or static (single shared QR)
 	// Warranty configuration
 	WarrantyMonths              int        `gorm:"default:12" json:"warranty_months"`
 	MaxWarrantyRegistrationDays *int       `gorm:"default:null" json:"max_warranty_registration_days,omitempty"`
@@ -50,8 +49,6 @@ type Product struct {
 	Videos datatypes.JSON `gorm:"type:jsonb;default:'[]'" json:"videos"`
 	// Product-level counterfeit threshold override (NULL = use tenant global setting)
 	CounterfeitScanMax *int `gorm:"default:null" json:"counterfeit_scan_max,omitempty"`
-	// Product-level loyalty points override (NULL = use program default points_per_scan)
-	LoyaltyPointsOverride *int `gorm:"default:null" json:"loyalty_points_override,omitempty"`
 	CreatedBy          *uuid.UUID `gorm:"type:uuid" json:"created_by,omitempty"`
 	CreatedAt                   time.Time  `json:"created_at"`
 	UpdatedAt                   time.Time  `json:"updated_at"`
@@ -212,8 +209,6 @@ type QRCode struct {
 	IsCompressed      bool              `gorm:"default:false" json:"is_compressed"`
 	CompressedData    []byte            `gorm:"type:bytea" json:"-"`
 	CompressedAt      *time.Time        `json:"compressed_at,omitempty"`
-	LoyaltyClaimedBy  *uuid.UUID        `gorm:"type:uuid" json:"loyalty_claimed_by,omitempty"`
-	LoyaltyClaimedAt   *time.Time        `json:"loyalty_claimed_at,omitempty"`
 	// QR-level counterfeit threshold override (NULL = inherit from batch/product/tenant)
 	CounterfeitScanMax *int             `gorm:"default:null" json:"counterfeit_scan_max,omitempty"`
 

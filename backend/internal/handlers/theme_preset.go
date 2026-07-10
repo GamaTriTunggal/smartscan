@@ -86,7 +86,7 @@ func (h *ThemePresetHandler) CreateThemePreset(c *gin.Context) {
 	var req struct {
 		Name           string `json:"name" binding:"required"`
 		Description    string `json:"description"`
-		PresetType     string `json:"preset_type" binding:"required,oneof=landing campaign"`
+		PresetType     string `json:"preset_type" binding:"required,oneof=landing"`
 		BackgroundURL  string `json:"background_url" binding:"required"`
 		ThumbnailURL   string `json:"thumbnail_url"`
 		OverlayColor   string `json:"overlay_color"`
@@ -202,7 +202,7 @@ func (h *ThemePresetHandler) UpdateThemePreset(c *gin.Context) {
 		updates["description"] = req.Description
 	}
 	if req.PresetType != "" {
-		if req.PresetType != "landing" && req.PresetType != "campaign" {
+		if req.PresetType != "landing" {
 			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid preset type", nil)
 			return
 		}

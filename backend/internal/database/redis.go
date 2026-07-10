@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/gamatritunggal/smartscan/backend/internal/config"
+	"github.com/redis/go-redis/v9"
 )
 
 var RedisClient *redis.Client

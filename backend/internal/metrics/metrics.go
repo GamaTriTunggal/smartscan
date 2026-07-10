@@ -89,15 +89,6 @@ var (
 		[]string{"type", "result"},
 	)
 
-	// CampaignParticipationsTotal counts campaign participations
-	CampaignParticipationsTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "smartscan_campaign_participations_total",
-			Help: "Total number of campaign participations",
-		},
-		[]string{"mechanism", "result"},
-	)
-
 	// EmailsSentTotal counts emails sent by status
 	EmailsSentTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{

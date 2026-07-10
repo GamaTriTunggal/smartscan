@@ -351,7 +351,6 @@ func (h *QRBatchHandler) CreateQRBatch(c *gin.Context) {
 		ValidationTemplateID: validationTemplateID,
 		// NeedWarranty removed - warranty is now at product level (product.WarrantyEnabled)
 		WarrantyTemplateID: warrantyTemplateID, // Template override still allowed
-		// IsStatic removed - static QR is only at product level (products.static_qr_uuid)
 		// Geofence
 		GeofenceEnabled:   geofenceEnabled,
 		GeofenceLatitude:  geofenceLat,
@@ -1122,8 +1121,6 @@ func (h *QRBatchHandler) GetBatchHeatmap(c *gin.Context) {
 		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryProductValidation)
 	case "warranty":
 		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryWarrantyActivation)
-	case "campaign":
-		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryCampaign)
 	}
 
 	// Execute query
@@ -1270,7 +1267,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 		UniqueQRScanned  int64      `json:"unique_qr_scanned"`
 		ValidationScans  int64      `json:"validation_scans"`
 		WarrantyScans    int64      `json:"warranty_scans"`
-		CampaignScans    int64      `json:"campaign_scans"`
 		UniqueCities     int64      `json:"unique_cities"`
 		FirstScanAt      *time.Time `json:"first_scan_at"`
 		LastScanAt       *time.Time `json:"last_scan_at"`
@@ -1285,7 +1281,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 			COUNT(DISTINCT i.qr_code_id) as unique_qr_scanned,
 			COUNT(CASE WHEN i.interaction_subcategory = ? THEN 1 END) as validation_scans,
 			COUNT(CASE WHEN i.interaction_subcategory = ? THEN 1 END) as warranty_scans,
-			COUNT(CASE WHEN i.interaction_subcategory = ? THEN 1 END) as campaign_scans,
 			COUNT(DISTINCT CASE WHEN i.geolocation->>'city' != '' THEN i.geolocation->>'city' END) as unique_cities,
 			MIN(i.created_at) as first_scan_at,
 			MAX(i.created_at) as last_scan_at
@@ -1295,7 +1290,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 			AND i.interaction_category = ?`,
 		models.InteractionSubcategoryProductValidation,
 		models.InteractionSubcategoryWarrantyActivation,
-		models.InteractionSubcategoryCampaign,
 		batchID, tenantUUID,
 		models.InteractionCategoryEndUserAccess,
 	).Scan(&summaryResult).Error
@@ -1333,7 +1327,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 		Date       time.Time `json:"date"`
 		Validation int64     `json:"validation"`
 		Warranty   int64     `json:"warranty"`
-		Campaign   int64     `json:"campaign"`
 		Total      int64     `json:"total"`
 	}
 
@@ -1350,7 +1343,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 			DATE_TRUNC('%s', i.created_at) as date,
 			COUNT(*) FILTER (WHERE i.interaction_subcategory = ?) as validation,
 			COUNT(*) FILTER (WHERE i.interaction_subcategory = ?) as warranty,
-			COUNT(*) FILTER (WHERE i.interaction_subcategory = ?) as campaign,
 			COUNT(*) as total
 		FROM interactions i
 		JOIN qr_codes qc ON qc.id = i.qr_code_id
@@ -1360,7 +1352,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 		ORDER BY date ASC`, trendTrunc, trendTrunc),
 		models.InteractionSubcategoryProductValidation,
 		models.InteractionSubcategoryWarrantyActivation,
-		models.InteractionSubcategoryCampaign,
 		batchID, tenantUUID,
 		models.InteractionCategoryEndUserAccess,
 	).Scan(&trends).Error
@@ -1379,7 +1370,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 			"date":       t.Date.Format("2006-01-02"),
 			"validation": t.Validation,
 			"warranty":   t.Warranty,
-			"campaign":   t.Campaign,
 			"total":      t.Total,
 		})
 	}
@@ -1450,7 +1440,6 @@ func (h *QRBatchHandler) GetBatchAnalytics(c *gin.Context) {
 			"scan_rate":         scanRate,
 			"validation_scans":  summaryResult.ValidationScans,
 			"warranty_scans":    summaryResult.WarrantyScans,
-			"campaign_scans":    summaryResult.CampaignScans,
 			"unique_cities":     summaryResult.UniqueCities,
 			"first_scan_at":     summaryResult.FirstScanAt,
 			"last_scan_at":      summaryResult.LastScanAt,

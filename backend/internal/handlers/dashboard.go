@@ -42,7 +42,6 @@ type ScanTrendByType struct {
 	Date       string `json:"date"`
 	Validation int64  `json:"validation"`
 	Warranty   int64  `json:"warranty"`
-	Campaign   int64  `json:"campaign"`
 }
 
 // RegionStat for top performing regions widget
@@ -198,8 +197,7 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		SELECT
 			(created_at AT TIME ZONE 'UTC')::date::text as date,
 			COUNT(*) FILTER (WHERE interaction_subcategory = 'product_validation') as validation,
-			COUNT(*) FILTER (WHERE interaction_subcategory = 'warranty_activation') as warranty,
-			COUNT(*) FILTER (WHERE interaction_subcategory = 'campaign') as campaign
+			COUNT(*) FILTER (WHERE interaction_subcategory = 'warranty_activation') as warranty
 		FROM interactions
 		WHERE tenant_id = ?
 			AND (created_at AT TIME ZONE 'UTC')::date >= ?
@@ -510,7 +508,7 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		responseData["geofence"] = geofenceData
 	}
 
-	// 2. Warranty and Campaign Template Performance
+	// 2. Warranty Template Performance
 	// Warranty Template Performance with trend
 	var warrantyCurrentRaw []struct {
 		TemplateID   *uuid.UUID
@@ -692,7 +690,7 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 	// Parse query parameters
 	fromDate := c.DefaultQuery("from", time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02"))
 	toDate := c.DefaultQuery("to", time.Now().UTC().Format("2006-01-02"))
-	source := c.DefaultQuery("source", "all") // all, validation, warranty, campaign
+	source := c.DefaultQuery("source", "all") // all, validation, warranty
 
 	// Scan filter for raw queries
 	qrTypeSQL := "AND i.qr_code_id IS NOT NULL"
@@ -773,9 +771,8 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 			return
 
 		case "province":
-			// Aggregate from interactions.geolocation JSON (province populated by the
-			// reverse-geocoder), mirroring the "country" case. The former
-			// campaign_participations source was removed with the campaign module.
+			// Aggregate from interactions.geolocation JSON (province populated by
+			// the reverse-geocoder), mirroring the "country" case.
 			var provinceAggregates []struct {
 				ProvinceName string  `json:"province_name"`
 				CountryName  string  `json:"country_name"`
@@ -878,8 +875,6 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryProductValidation)
 	case "warranty":
 		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryWarrantyActivation)
-	case "campaign":
-		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryCampaign)
 	}
 
 	// Filter by country

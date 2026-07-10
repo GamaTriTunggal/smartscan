@@ -94,7 +94,7 @@ type QRGenerationConfig struct {
 	PollInterval      time.Duration // How often workers poll for jobs (default: 1s)
 	TenantLockTTL     time.Duration // TTL for per-tenant concurrent lock (default: 15m)
 	MaxStreamLength   int64         // Max jobs in Redis stream (default: 10000)
-	PDFExportMaxCodes int // Max codes per PDF export file (default 10000)
+	PDFExportMaxCodes int           // Max codes per PDF export file (default 10000)
 }
 
 // GeocodingConfig holds configuration for reverse geocoding services

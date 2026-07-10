@@ -130,7 +130,7 @@ onUnmounted(() => {
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dynamic QR Products</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Manage products with unique QR codes per unit. Create batches and request printing.
+          Manage products with unique QR codes per unit. Create batches and export print-ready QR codes.
         </p>
       </div>
       <Button @click="goToCreateProduct" data-tour="add-product-btn">

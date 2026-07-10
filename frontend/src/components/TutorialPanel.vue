@@ -22,7 +22,6 @@ const tourIndex = computed(() => {
 const tours = computed(() =>
   allTours
     .filter(t => !t.hidden)
-    .filter(t => !t.requiredTier || t.requiredTier.includes('pro'))
     .map(t => ({
       ...t,
       completed: isTourCompleted(t.id),
@@ -92,12 +91,6 @@ function onStartTour(tourId) {
         </h3>
 
         <div class="flex items-center gap-1 mt-1.5 mb-2">
-          <span
-            v-if="tour.requiredTier"
-            class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 capitalize"
-          >
-            {{ tour.requiredTier.join(', ') }}
-          </span>
           <span
             v-if="tour.completed"
             class="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"

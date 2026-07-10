@@ -69,14 +69,12 @@ const heatmapLoading = ref(false)
 const heatmapData = ref(null)
 const heatmapError = ref(false)
 
-const canViewHeatmap = computed(() => true)
-
 // Analytics state
 const analyticsLoading = ref(false)
 const analyticsData = ref(null)
 const analyticsError = ref(false)
 
-// Geofence analytics state (Pro tier)
+// Geofence analytics state
 const geofenceAnalytics = ref(null)
 
 const heatmapGeofenceViolations = computed(() => {
@@ -104,7 +102,7 @@ const editingGeofence = ref(false)
 const savingGeofence = ref(false)
 const geofenceForm = ref({ latitude: null, longitude: null, radius_km: 25, label: '' })
 
-// Zone templates for edit geofence (Pro tier)
+// Zone templates for edit geofence
 const zoneTemplates = ref([])
 const selectedZoneTemplateId = ref(null)
 
@@ -256,7 +254,7 @@ const fetchBatchAnalytics = async () => {
   }
 }
 
-// Geofence analytics fetch (Pro tier only)
+// Geofence analytics fetch
 const fetchGeofenceAnalytics = async () => {
   if (geofenceAnalytics.value) return
   try {
@@ -265,7 +263,7 @@ const fetchGeofenceAnalytics = async () => {
       geofenceAnalytics.value = response.data
     }
   } catch (error) {
-    // Expected to fail for non-Pro tiers, silently ignore
+    // Analytics are supplementary — the page still works without them
   }
 }
 
@@ -623,10 +621,8 @@ onMounted(async () => {
   await fetchBatch()
   fetchCodes()
   fetchTemplates()
-  if (canViewHeatmap.value) {
-    fetchBatchHeatmap()
-    fetchBatchAnalytics()
-  }
+  fetchBatchHeatmap()
+  fetchBatchAnalytics()
   tour.resumeIfActive()
   window.addEventListener('tour-set-value', handleTourSetValue)
 })
@@ -902,8 +898,8 @@ onUnmounted(() => {
         </div>
       </Card>
 
-      <!-- Batch Scan Heatmap (Intermediate+ only) -->
-      <Card v-if="canViewHeatmap" class="overflow-hidden">
+      <!-- Batch Scan Heatmap -->
+      <Card class="overflow-hidden">
         <div class="p-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -938,7 +934,7 @@ onUnmounted(() => {
 
         <!-- Edit geofence mode -->
         <div v-if="editingGeofence && batch.geofence_enabled" class="p-4">
-          <!-- Zone Template Selector (Pro only) -->
+          <!-- Zone Template Selector -->
           <div v-if="zoneTemplates.length > 0" class="flex items-center gap-2 mb-3">
             <label class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Load template:</label>
             <select
@@ -1016,7 +1012,7 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <!-- Pro tier: Geofence analytics -->
+          <!-- Geofence analytics -->
           <div v-if="geofenceAnalytics" class="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
@@ -1042,173 +1038,171 @@ onUnmounted(() => {
         </template>
       </Card>
 
-      <!-- Batch Analytics (Intermediate+ only) -->
-      <template v-if="canViewHeatmap">
-        <!-- Analytics Loading -->
-        <div v-if="analyticsLoading" class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card v-for="i in 4" :key="i" class="p-4">
-              <div class="animate-pulse space-y-3">
-                <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
-                <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
-              </div>
-            </Card>
-          </div>
+      <!-- Batch Analytics -->
+      <!-- Analytics Loading -->
+      <div v-if="analyticsLoading" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card v-for="i in 4" :key="i" class="p-4">
+            <div class="animate-pulse space-y-3">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+              <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32"></div>
+            </div>
+          </Card>
+        </div>
+        <Card class="p-4">
+          <div class="animate-pulse h-[300px] bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </Card>
+      </div>
+
+      <!-- Analytics Error -->
+      <Card v-else-if="analyticsError" class="p-8 text-center">
+        <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400">Failed to load analytics data.</p>
+        <button
+          @click="analyticsData = null; fetchBatchAnalytics()"
+          class="text-zinc-600 dark:text-zinc-400 hover:underline mt-2 text-sm"
+        >
+          Retry
+        </button>
+      </Card>
+
+      <!-- Analytics Content -->
+      <template v-else-if="analyticsData">
+        <!-- Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Total Scans -->
           <Card class="p-4">
-            <div class="animate-pulse h-[300px] bg-gray-200 dark:bg-gray-700 rounded"></div>
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-zinc-100 dark:bg-zinc-900/30 rounded-lg">
+                <Eye class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </div>
+              <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Scans</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                  {{ analyticsData.summary.total_scans.toLocaleString() }}
+                </p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">scans recorded</p>
+              </div>
+            </div>
+          </Card>
+
+          <!-- Scan Rate -->
+          <Card class="p-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <Activity class="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Scan Rate</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                  {{ analyticsData.summary.scan_rate }}%
+                </p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">
+                  {{ analyticsData.summary.unique_qr_scanned.toLocaleString() }} of {{ analyticsData.summary.total_qr_codes.toLocaleString() }} QR codes
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <!-- Geographic Reach -->
+          <Card class="p-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-zinc-100 dark:bg-zinc-900/30 rounded-lg">
+                <MapPinIcon class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+              </div>
+              <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Geographic Reach</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                  {{ analyticsData.summary.unique_cities }}
+                </p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">unique cities</p>
+              </div>
+            </div>
+          </Card>
+
+          <!-- Scan Breakdown -->
+          <Card class="p-4">
+            <div class="flex items-center gap-3">
+              <div class="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                <BarChart3 class="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Scan Breakdown</p>
+                <div class="flex items-center gap-2 mt-1 text-sm">
+                  <span class="text-zinc-600 dark:text-zinc-400 font-medium">
+                    {{ analyticsData.summary.validation_scans.toLocaleString() }}
+                  </span>
+                  <span class="text-gray-300 dark:text-gray-600">/</span>
+                  <span class="text-zinc-600 dark:text-zinc-400 font-medium">
+                    {{ analyticsData.summary.warranty_scans.toLocaleString() }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-400 dark:text-gray-500">validation / warranty</p>
+              </div>
+            </div>
           </Card>
         </div>
 
-        <!-- Analytics Error -->
-        <Card v-else-if="analyticsError" class="p-8 text-center">
-          <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <p class="text-gray-500 dark:text-gray-400">Failed to load analytics data.</p>
-          <button
-            @click="analyticsData = null; fetchBatchAnalytics()"
-            class="text-zinc-600 dark:text-zinc-400 hover:underline mt-2 text-sm"
-          >
-            Retry
-          </button>
+        <!-- Scan Trend Chart -->
+        <Card v-if="trendChartData" class="overflow-hidden">
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Scan Trends</h2>
+            <span class="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+              {{ analyticsData.trend_granularity === 'week' ? 'Weekly' : 'Daily' }}
+            </span>
+          </div>
+          <div class="p-4">
+            <div class="h-[300px]">
+              <Line :data="trendChartData" :options="trendChartOptions" />
+            </div>
+          </div>
         </Card>
 
-        <!-- Analytics Content -->
-        <template v-else-if="analyticsData">
-          <!-- Stat Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Total Scans -->
-            <Card class="p-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-zinc-100 dark:bg-zinc-900/30 rounded-lg">
-                  <Eye class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Total Scans</p>
-                  <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ analyticsData.summary.total_scans.toLocaleString() }}
-                  </p>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">scans recorded</p>
-                </div>
-              </div>
-            </Card>
-
-            <!-- Scan Rate -->
-            <Card class="p-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <Activity class="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Scan Rate</p>
-                  <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ analyticsData.summary.scan_rate }}%
-                  </p>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">
-                    {{ analyticsData.summary.unique_qr_scanned.toLocaleString() }} of {{ analyticsData.summary.total_qr_codes.toLocaleString() }} QR codes
-                  </p>
-                </div>
-              </div>
-            </Card>
-
-            <!-- Geographic Reach -->
-            <Card class="p-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-zinc-100 dark:bg-zinc-900/30 rounded-lg">
-                  <MapPinIcon class="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Geographic Reach</p>
-                  <p class="text-2xl font-bold text-gray-900 dark:text-white">
-                    {{ analyticsData.summary.unique_cities }}
-                  </p>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">unique cities</p>
-                </div>
-              </div>
-            </Card>
-
-            <!-- Scan Breakdown -->
-            <Card class="p-4">
-              <div class="flex items-center gap-3">
-                <div class="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                  <BarChart3 class="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Scan Breakdown</p>
-                  <div class="flex items-center gap-2 mt-1 text-sm">
-                    <span class="text-zinc-600 dark:text-zinc-400 font-medium">
-                      {{ analyticsData.summary.validation_scans.toLocaleString() }}
-                    </span>
-                    <span class="text-gray-300 dark:text-gray-600">/</span>
-                    <span class="text-zinc-600 dark:text-zinc-400 font-medium">
-                      {{ analyticsData.summary.warranty_scans.toLocaleString() }}
-                    </span>
-                  </div>
-                  <p class="text-xs text-gray-400 dark:text-gray-500">validation / warranty</p>
-                </div>
-              </div>
-            </Card>
+        <!-- Top Scan Locations -->
+        <Card v-if="analyticsData.top_locations && analyticsData.top_locations.length > 0" class="overflow-hidden">
+          <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Top Scan Locations</h2>
           </div>
-
-          <!-- Scan Trend Chart -->
-          <Card v-if="trendChartData" class="overflow-hidden">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Scan Trends</h2>
-              <span class="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                {{ analyticsData.trend_granularity === 'week' ? 'Weekly' : 'Daily' }}
-              </span>
-            </div>
-            <div class="p-4">
-              <div class="h-[300px]">
-                <Line :data="trendChartData" :options="trendChartOptions" />
-              </div>
-            </div>
-          </Card>
-
-          <!-- Top Scan Locations -->
-          <Card v-if="analyticsData.top_locations && analyticsData.top_locations.length > 0" class="overflow-hidden">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Top Scan Locations</h2>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-gray-200 dark:border-gray-700">
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">City</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Country</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Scans</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">Distribution</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(loc, index) in analyticsData.top_locations"
-                    :key="index"
-                    class="border-b border-gray-100 dark:border-gray-800 last:border-0"
-                  >
-                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ index + 1 }}</td>
-                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ loc.city }}</td>
-                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ loc.country }}</td>
-                    <td class="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{{ loc.count.toLocaleString() }}</td>
-                    <td class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                          <div
-                            class="h-full bg-zinc-500 dark:bg-zinc-400 rounded-full"
-                            :style="{ width: loc.percentage + '%' }"
-                          ></div>
-                        </div>
-                        <span class="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">{{ loc.percentage }}%</span>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-200 dark:border-gray-700">
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">City</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Country</th>
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Scans</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">Distribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(loc, index) in analyticsData.top_locations"
+                  :key="index"
+                  class="border-b border-gray-100 dark:border-gray-800 last:border-0"
+                >
+                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ index + 1 }}</td>
+                  <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ loc.city }}</td>
+                  <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{{ loc.country }}</td>
+                  <td class="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">{{ loc.count.toLocaleString() }}</td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          class="h-full bg-zinc-500 dark:bg-zinc-400 rounded-full"
+                          :style="{ width: loc.percentage + '%' }"
+                        ></div>
                       </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </template>
+                      <span class="text-xs text-gray-500 dark:text-gray-400 w-12 text-right">{{ loc.percentage }}%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </template>
 
       <!-- Hide QR codes list while generation is in progress or failed -->

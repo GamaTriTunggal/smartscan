@@ -126,7 +126,7 @@ const mapViolations = ref([])
 const mapZones = ref([])
 const loadingMap = ref(false)
 
-// Pro analytics
+// Analytics
 const analytics = ref(null)
 const previousAnalytics = ref(null)
 const loadingAnalytics = ref(false)
@@ -274,7 +274,7 @@ async function fetchAnalytics() {
       }
     }
   } catch (error) {
-    // Pro tier only — silently ignore if not available
+    // Analytics are supplementary — the page still works without them
   } finally {
     loadingAnalytics.value = false
   }
@@ -418,7 +418,7 @@ const byProductMax = computed(() => {
   return analytics.value.by_product[0]?.count || 1
 })
 
-// Period comparison for Pro analytics cards
+// Period comparison for analytics cards
 const periodChange = computed(() => {
   if (!analytics.value || !previousAnalytics.value) {
     return { rate: null, avgKm: null, maxKm: null }

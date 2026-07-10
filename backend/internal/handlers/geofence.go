@@ -413,7 +413,7 @@ func (h *GeofenceHandler) getGeofenceComparisonStats(tenantUUID uuid.UUID, from,
 	return stats
 }
 
-// GetGeofenceAnalytics returns strategic analytics for geofence violations (Pro tier).
+// GetGeofenceAnalytics returns strategic analytics for geofence violations.
 // GET /api/v1/tenant/geofence/analytics
 func (h *GeofenceHandler) GetGeofenceAnalytics(c *gin.Context) {
 	tenantUUID, ok := utils.GetTenantUUID(c)
@@ -573,7 +573,7 @@ func (h *GeofenceHandler) GetBatchGeofenceViolations(c *gin.Context) {
 	})
 }
 
-// GetBatchGeofenceAnalytics returns detailed analytics for a batch's geofence (Pro tier).
+// GetBatchGeofenceAnalytics returns detailed analytics for a batch's geofence.
 // GET /api/v1/tenant/qr-batches/:id/geofence-analytics
 func (h *GeofenceHandler) GetBatchGeofenceAnalytics(c *gin.Context) {
 	tenantUUID, ok := utils.GetTenantUUID(c)
@@ -646,7 +646,7 @@ func (h *GeofenceHandler) GetBatchGeofenceAnalytics(c *gin.Context) {
 	})
 }
 
-// ExportGeofenceViolations exports violations to Excel (Pro tier).
+// ExportGeofenceViolations exports violations to Excel.
 // GET /api/v1/tenant/geofence/violations/export
 func (h *GeofenceHandler) ExportGeofenceViolations(c *gin.Context) {
 	tenantUUID, ok := utils.GetTenantUUID(c)
@@ -806,7 +806,7 @@ func (h *GeofenceHandler) GetGeofenceMapData(c *gin.Context) {
 	})
 }
 
-// ---- Zone Templates (Pro tier) ----
+// ---- Zone Templates ----
 
 // ListZoneTemplates returns paginated zone templates for a tenant.
 // GET /api/v1/tenant/geofence/zone-templates

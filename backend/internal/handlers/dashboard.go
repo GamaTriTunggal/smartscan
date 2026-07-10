@@ -137,9 +137,6 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		comparisonLabel = "vs same period last year"
 	}
 
-	// All features are always enabled in the self-hosted edition.
-	isIntermediatePlus := true
-
 	// Helper function to get enhanced stats for a period
 	getEnhancedStats := func(from, to string) EnhancedStats {
 		var stats EnhancedStats
@@ -176,15 +173,13 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		`, qrTypeFilter), tenantUUID, from, to).Scan(&stats.UniqueCities)
 
 		// Counterfeit count and rate
-		if isIntermediatePlus {
-			h.DB.Model(&models.CounterfeitDetection{}).
-				Where("tenant_id = ? AND status = ? AND (created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?",
-					tenantUUID, "active", from, to).
-				Count(&stats.CounterfeitCount)
+		h.DB.Model(&models.CounterfeitDetection{}).
+			Where("tenant_id = ? AND status = ? AND (created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?",
+				tenantUUID, "active", from, to).
+			Count(&stats.CounterfeitCount)
 
-			if stats.TotalScans > 0 {
-				stats.CounterfeitRate = float64(stats.CounterfeitCount) / float64(stats.TotalScans) * 100
-			}
+		if stats.TotalScans > 0 {
+			stats.CounterfeitRate = float64(stats.CounterfeitCount) / float64(stats.TotalScans) * 100
 		}
 
 		return stats
@@ -234,70 +229,68 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		LIMIT 10
 	`, qrTypeSQL), tenantUUID, fromDate, toDate).Scan(&topRegions)
 
-	// Counterfeit Intelligence (for Intermediate+ tier)
+	// Counterfeit Intelligence
 	var productCounterfeit []ProductCounterfeit
 	var counterfeitHotspots []CounterfeitHotspot
 
-	if isIntermediatePlus {
-		// Per-product counterfeit breakdown (dynamic QR only)
-		h.DB.Raw(`
-			SELECT
-				p.id::text as product_id,
-				p.product_name,
-				COUNT(DISTINCT i.id) as total_scans,
-				COUNT(DISTINCT CASE WHEN qc.counterfeit_status = 'counterfeit' THEN i.id END) as counterfeit_count,
-				CASE
-					WHEN COUNT(DISTINCT i.id) = 0 THEN 0
-					ELSE ROUND((COUNT(DISTINCT CASE WHEN qc.counterfeit_status = 'counterfeit' THEN i.id END)::numeric / COUNT(DISTINCT i.id)::numeric) * 100, 2)
-				END as rate
-			FROM products p
-			LEFT JOIN qr_batches qb ON qb.product_id = p.id
-			LEFT JOIN qr_codes qc ON qc.batch_id = qb.id
-			LEFT JOIN interactions i ON i.qr_code_id = qc.id
-				AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
-				AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
-			WHERE p.tenant_id = ? AND p.deleted_at IS NULL
-			GROUP BY p.id, p.product_name
-			HAVING COUNT(DISTINCT i.id) > 0
-			ORDER BY rate DESC
-			LIMIT 10
-		`, fromDate, toDate, tenantUUID).Scan(&productCounterfeit)
+	// Per-product counterfeit breakdown (dynamic QR only)
+	h.DB.Raw(`
+		SELECT
+			p.id::text as product_id,
+			p.product_name,
+			COUNT(DISTINCT i.id) as total_scans,
+			COUNT(DISTINCT CASE WHEN qc.counterfeit_status = 'counterfeit' THEN i.id END) as counterfeit_count,
+			CASE
+				WHEN COUNT(DISTINCT i.id) = 0 THEN 0
+				ELSE ROUND((COUNT(DISTINCT CASE WHEN qc.counterfeit_status = 'counterfeit' THEN i.id END)::numeric / COUNT(DISTINCT i.id)::numeric) * 100, 2)
+			END as rate
+		FROM products p
+		LEFT JOIN qr_batches qb ON qb.product_id = p.id
+		LEFT JOIN qr_codes qc ON qc.batch_id = qb.id
+		LEFT JOIN interactions i ON i.qr_code_id = qc.id
+			AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
+			AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
+		WHERE p.tenant_id = ? AND p.deleted_at IS NULL
+		GROUP BY p.id, p.product_name
+		HAVING COUNT(DISTINCT i.id) > 0
+		ORDER BY rate DESC
+		LIMIT 10
+	`, fromDate, toDate, tenantUUID).Scan(&productCounterfeit)
 
-		// Add risk level to each product
-		for i := range productCounterfeit {
-			rate := productCounterfeit[i].Rate
-			switch {
-			case rate > 2:
-				productCounterfeit[i].RiskLevel = "high"
-			case rate > 0.5:
-				productCounterfeit[i].RiskLevel = "medium"
-			case rate > 0:
-				productCounterfeit[i].RiskLevel = "low"
-			default:
-				productCounterfeit[i].RiskLevel = "safe"
-			}
+	// Add risk level to each product
+	for i := range productCounterfeit {
+		rate := productCounterfeit[i].Rate
+		switch {
+		case rate > 2:
+			productCounterfeit[i].RiskLevel = "high"
+		case rate > 0.5:
+			productCounterfeit[i].RiskLevel = "medium"
+		case rate > 0:
+			productCounterfeit[i].RiskLevel = "low"
+		default:
+			productCounterfeit[i].RiskLevel = "safe"
 		}
-
-		// Counterfeit hotspot locations
-		h.DB.Raw(`
-			SELECT
-				i.geolocation->>'city' as city,
-				i.geolocation->>'country' as country,
-				COUNT(DISTINCT cd.id) as count
-			FROM counterfeit_detections cd
-			JOIN qr_codes qc ON qc.id = cd.qr_code_id
-			JOIN interactions i ON i.qr_code_id = qc.id
-			WHERE cd.tenant_id = ?
-				AND cd.status = 'active'
-				AND i.geolocation IS NOT NULL
-				AND i.geolocation->>'city' IS NOT NULL
-				AND (cd.created_at AT TIME ZONE 'UTC')::date >= ?
-				AND (cd.created_at AT TIME ZONE 'UTC')::date <= ?
-			GROUP BY i.geolocation->>'city', i.geolocation->>'country'
-			ORDER BY count DESC
-			LIMIT 3
-		`, tenantUUID, fromDate, toDate).Scan(&counterfeitHotspots)
 	}
+
+	// Counterfeit hotspot locations
+	h.DB.Raw(`
+		SELECT
+			i.geolocation->>'city' as city,
+			i.geolocation->>'country' as country,
+			COUNT(DISTINCT cd.id) as count
+		FROM counterfeit_detections cd
+		JOIN qr_codes qc ON qc.id = cd.qr_code_id
+		JOIN interactions i ON i.qr_code_id = qc.id
+		WHERE cd.tenant_id = ?
+			AND cd.status = 'active'
+			AND i.geolocation IS NOT NULL
+			AND i.geolocation->>'city' IS NOT NULL
+			AND (cd.created_at AT TIME ZONE 'UTC')::date >= ?
+			AND (cd.created_at AT TIME ZONE 'UTC')::date <= ?
+		GROUP BY i.geolocation->>'city', i.geolocation->>'country'
+		ORDER BY count DESC
+		LIMIT 3
+	`, tenantUUID, fromDate, toDate).Scan(&counterfeitHotspots)
 
 	// Template performance with trend comparison
 	type TemplateUsage struct {
@@ -319,7 +312,7 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		return float64(current-previous) / float64(previous) * 100
 	}
 
-	// 1. Validation (Landing Page) Template Performance - available for all tiers
+	// 1. Validation (Landing Page) Template Performance
 	var validationCurrentRaw []struct {
 		TemplateID   *uuid.UUID
 		TemplateName string
@@ -416,159 +409,116 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 		"has_dynamic_products": hasDynamicProducts,
 	}
 
-	// Add counterfeit intelligence for Intermediate+ tier
-	if isIntermediatePlus {
-		responseData["counterfeit"] = gin.H{
-			"overall_rate":      currentStats.CounterfeitRate,
-			"previous_rate":     previousStats.CounterfeitRate,
-			"per_product":       productCounterfeit,
-			"hotspot_locations": counterfeitHotspots,
-		}
+	// Counterfeit intelligence
+	responseData["counterfeit"] = gin.H{
+		"overall_rate":      currentStats.CounterfeitRate,
+		"previous_rate":     previousStats.CounterfeitRate,
+		"per_product":       productCounterfeit,
+		"hotspot_locations": counterfeitHotspots,
 	}
 
-	// Add geofence distribution alerts for Intermediate+ tier (dynamic only)
-	if isIntermediatePlus {
-		// Count violations by severity for current period
-		type SeverityCount struct {
-			Severity string `json:"severity"`
-			Count    int64  `json:"count"`
+	// Geofence distribution alerts (dynamic only)
+	// Count violations by severity for current period
+	type SeverityCount struct {
+		Severity string `json:"severity"`
+		Count    int64  `json:"count"`
+	}
+	var geoSeverityCounts []SeverityCount
+	h.DB.Model(&models.GeofenceViolation{}).
+		Select("severity, COUNT(*) as count").
+		Where("tenant_id = ?", tenantUUID).
+		Where("(created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?", fromDate, toDate).
+		Group("severity").
+		Scan(&geoSeverityCounts)
+
+	var geoTotalViolations int64
+	for _, sc := range geoSeverityCounts {
+		geoTotalViolations += sc.Count
+	}
+
+	// Only include geofence data if there are violations
+	if geoTotalViolations > 0 {
+		// Top batches by violation count (limit 5)
+		type BatchViolation struct {
+			BatchID   uuid.UUID `json:"batch_id"`
+			BatchName string    `json:"batch_name"`
+			Count     int64     `json:"count"`
 		}
-		var geoSeverityCounts []SeverityCount
+		var geoTopBatches []BatchViolation
 		h.DB.Model(&models.GeofenceViolation{}).
-			Select("severity, COUNT(*) as count").
+			Select("geofence_violations.batch_id, qr_batches.batch_name, COUNT(*) as count").
+			Joins("JOIN qr_batches ON qr_batches.id = geofence_violations.batch_id AND qr_batches.tenant_id = ?", tenantUUID).
+			Where("geofence_violations.tenant_id = ?", tenantUUID).
+			Where("(geofence_violations.created_at AT TIME ZONE 'UTC')::date >= ? AND (geofence_violations.created_at AT TIME ZONE 'UTC')::date <= ?", fromDate, toDate).
+			Group("geofence_violations.batch_id, qr_batches.batch_name").
+			Order("count DESC").
+			Limit(5).
+			Scan(&geoTopBatches)
+
+		geofenceData := gin.H{
+			"total_violations": geoTotalViolations,
+			"by_severity":     geoSeverityCounts,
+			"top_batches":     geoTopBatches,
+		}
+
+		// Violation rate and trend
+		// Total scans for geofence-enabled batches in current period
+		var geoTotalScans int64
+		h.DB.Raw(`
+			SELECT COUNT(*)
+			FROM interactions i
+			JOIN qr_codes qc ON qc.id = i.qr_code_id
+			JOIN qr_batches qb ON qb.id = qc.batch_id
+			WHERE qb.tenant_id = ? AND qb.geofence_enabled = true
+				AND i.interaction_subcategory = 'product_validation'
+				AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
+				AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
+		`, tenantUUID, fromDate, toDate).Scan(&geoTotalScans)
+
+		var geoViolationRate float64
+		if geoTotalScans > 0 {
+			geoViolationRate = float64(geoTotalViolations) / float64(geoTotalScans) * 100
+		}
+
+		// Previous period violation rate
+		var prevGeoViolations int64
+		h.DB.Model(&models.GeofenceViolation{}).
 			Where("tenant_id = ?", tenantUUID).
-			Where("(created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?", fromDate, toDate).
-			Group("severity").
-			Scan(&geoSeverityCounts)
+			Where("(created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?", prevFromDate, prevToDate).
+			Count(&prevGeoViolations)
 
-		var geoTotalViolations int64
-		for _, sc := range geoSeverityCounts {
-			geoTotalViolations += sc.Count
+		var prevGeoScans int64
+		h.DB.Raw(`
+			SELECT COUNT(*)
+			FROM interactions i
+			JOIN qr_codes qc ON qc.id = i.qr_code_id
+			JOIN qr_batches qb ON qb.id = qc.batch_id
+			WHERE qb.tenant_id = ? AND qb.geofence_enabled = true
+				AND i.interaction_subcategory = 'product_validation'
+				AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
+				AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
+		`, tenantUUID, prevFromDate, prevToDate).Scan(&prevGeoScans)
+
+		var prevGeoViolationRate float64
+		if prevGeoScans > 0 {
+			prevGeoViolationRate = float64(prevGeoViolations) / float64(prevGeoScans) * 100
 		}
 
-		// Only include geofence data if there are violations
-		if geoTotalViolations > 0 {
-			// Top batches by violation count (limit 5)
-			type BatchViolation struct {
-				BatchID   uuid.UUID `json:"batch_id"`
-				BatchName string    `json:"batch_name"`
-				Count     int64     `json:"count"`
-			}
-			var geoTopBatches []BatchViolation
-			h.DB.Model(&models.GeofenceViolation{}).
-				Select("geofence_violations.batch_id, qr_batches.batch_name, COUNT(*) as count").
-				Joins("JOIN qr_batches ON qr_batches.id = geofence_violations.batch_id AND qr_batches.tenant_id = ?", tenantUUID).
-				Where("geofence_violations.tenant_id = ?", tenantUUID).
-				Where("(geofence_violations.created_at AT TIME ZONE 'UTC')::date >= ? AND (geofence_violations.created_at AT TIME ZONE 'UTC')::date <= ?", fromDate, toDate).
-				Group("geofence_violations.batch_id, qr_batches.batch_name").
-				Order("count DESC").
-				Limit(5).
-				Scan(&geoTopBatches)
+		geofenceData["violation_rate"] = geoViolationRate
+		geofenceData["previous_violation_rate"] = prevGeoViolationRate
 
-			geofenceData := gin.H{
-				"total_violations": geoTotalViolations,
-				"by_severity":     geoSeverityCounts,
-				"top_batches":     geoTopBatches,
-			}
-
-			// Violation rate and trend
-			isProTier := true
-			if isProTier {
-				// Total scans for geofence-enabled batches in current period
-				var geoTotalScans int64
-				h.DB.Raw(`
-					SELECT COUNT(*)
-					FROM interactions i
-					JOIN qr_codes qc ON qc.id = i.qr_code_id
-					JOIN qr_batches qb ON qb.id = qc.batch_id
-					WHERE qb.tenant_id = ? AND qb.geofence_enabled = true
-						AND i.interaction_subcategory = 'product_validation'
-						AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
-						AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
-				`, tenantUUID, fromDate, toDate).Scan(&geoTotalScans)
-
-				var geoViolationRate float64
-				if geoTotalScans > 0 {
-					geoViolationRate = float64(geoTotalViolations) / float64(geoTotalScans) * 100
-				}
-
-				// Previous period violation rate
-				var prevGeoViolations int64
-				h.DB.Model(&models.GeofenceViolation{}).
-					Where("tenant_id = ?", tenantUUID).
-					Where("(created_at AT TIME ZONE 'UTC')::date >= ? AND (created_at AT TIME ZONE 'UTC')::date <= ?", prevFromDate, prevToDate).
-					Count(&prevGeoViolations)
-
-				var prevGeoScans int64
-				h.DB.Raw(`
-					SELECT COUNT(*)
-					FROM interactions i
-					JOIN qr_codes qc ON qc.id = i.qr_code_id
-					JOIN qr_batches qb ON qb.id = qc.batch_id
-					WHERE qb.tenant_id = ? AND qb.geofence_enabled = true
-						AND i.interaction_subcategory = 'product_validation'
-						AND (i.created_at AT TIME ZONE 'UTC')::date >= ?
-						AND (i.created_at AT TIME ZONE 'UTC')::date <= ?
-				`, tenantUUID, prevFromDate, prevToDate).Scan(&prevGeoScans)
-
-				var prevGeoViolationRate float64
-				if prevGeoScans > 0 {
-					prevGeoViolationRate = float64(prevGeoViolations) / float64(prevGeoScans) * 100
-				}
-
-				geofenceData["violation_rate"] = geoViolationRate
-				geofenceData["previous_violation_rate"] = prevGeoViolationRate
-			}
-
-			responseData["geofence"] = geofenceData
-		}
+		responseData["geofence"] = geofenceData
 	}
 
-	// 2. Warranty and Campaign Template Performance - only for Intermediate+ tier
-	if isIntermediatePlus {
-		// Warranty Template Performance with trend
-		var warrantyCurrentRaw []struct {
-			TemplateID   *uuid.UUID
-			TemplateName string
-			Count        int64
-		}
-		h.DB.Raw(`
-			WITH template_counts AS (
-				SELECT
-					qb.warranty_template_id as template_id,
-					COALESCE(pt.template_name, 'Default Template') as template_name,
-					COUNT(*) as count
-				FROM warranty_activations wa
-				JOIN qr_codes qc ON qc.id = wa.qr_code_id
-				JOIN qr_batches qb ON qb.id = qc.batch_id
-				LEFT JOIN page_templates pt ON pt.id = qb.warranty_template_id
-				WHERE qb.tenant_id = ?
-					AND (wa.activated_at AT TIME ZONE 'UTC')::date >= ?
-					AND (wa.activated_at AT TIME ZONE 'UTC')::date <= ?
-				GROUP BY qb.warranty_template_id, pt.template_name
-				ORDER BY count DESC
-			),
-			top_10 AS (
-				SELECT template_id, template_name, count
-				FROM template_counts
-				LIMIT 10
-			),
-			others AS (
-				SELECT NULL::uuid as template_id, 'Others' as template_name, COALESCE(SUM(count), 0) as count
-				FROM template_counts
-				WHERE (template_id, template_name) NOT IN (SELECT template_id, template_name FROM top_10)
-			)
-			SELECT * FROM top_10
-			UNION ALL
-			SELECT * FROM others WHERE count > 0
-		`, tenantUUID, fromDate, toDate).Scan(&warrantyCurrentRaw)
-
-		var warrantyPreviousRaw []struct {
-			TemplateID   *uuid.UUID
-			TemplateName string
-			Count        int64
-		}
-		h.DB.Raw(`
+	// 2. Warranty and Campaign Template Performance
+	// Warranty Template Performance with trend
+	var warrantyCurrentRaw []struct {
+		TemplateID   *uuid.UUID
+		TemplateName string
+		Count        int64
+	}
+	h.DB.Raw(`
+		WITH template_counts AS (
 			SELECT
 				qb.warranty_template_id as template_id,
 				COALESCE(pt.template_name, 'Default Template') as template_name,
@@ -581,32 +531,66 @@ func (h *DashboardHandler) GetTenantDashboard(c *gin.Context) {
 				AND (wa.activated_at AT TIME ZONE 'UTC')::date >= ?
 				AND (wa.activated_at AT TIME ZONE 'UTC')::date <= ?
 			GROUP BY qb.warranty_template_id, pt.template_name
-		`, tenantUUID, prevFromDate, prevToDate).Scan(&warrantyPreviousRaw)
+			ORDER BY count DESC
+		),
+		top_10 AS (
+			SELECT template_id, template_name, count
+			FROM template_counts
+			LIMIT 10
+		),
+		others AS (
+			SELECT NULL::uuid as template_id, 'Others' as template_name, COALESCE(SUM(count), 0) as count
+			FROM template_counts
+			WHERE (template_id, template_name) NOT IN (SELECT template_id, template_name FROM top_10)
+		)
+		SELECT * FROM top_10
+		UNION ALL
+		SELECT * FROM others WHERE count > 0
+	`, tenantUUID, fromDate, toDate).Scan(&warrantyCurrentRaw)
 
-		prevWarrantyMap := make(map[string]int64)
-		for _, p := range warrantyPreviousRaw {
-			prevWarrantyMap[p.TemplateName] = p.Count
-		}
-
-		var warrantyTemplatePerformance []TemplateUsage
-		for _, c := range warrantyCurrentRaw {
-			prev := prevWarrantyMap[c.TemplateName]
-			warrantyTemplatePerformance = append(warrantyTemplatePerformance, TemplateUsage{
-				TemplateID:    c.TemplateID,
-				TemplateName:  c.TemplateName,
-				Count:         c.Count,
-				PreviousCount: prev,
-				ChangePercent: calcChangePercent(c.Count, prev),
-			})
-		}
-
-		// Add to response — warranty only for dynamic (uses batch QR codes)
-		templatePerf := gin.H{
-			"validation": validationTemplatePerformance,
-			"warranty":   warrantyTemplatePerformance,
-		}
-		responseData["template_performance"] = templatePerf
+	var warrantyPreviousRaw []struct {
+		TemplateID   *uuid.UUID
+		TemplateName string
+		Count        int64
 	}
+	h.DB.Raw(`
+		SELECT
+			qb.warranty_template_id as template_id,
+			COALESCE(pt.template_name, 'Default Template') as template_name,
+			COUNT(*) as count
+		FROM warranty_activations wa
+		JOIN qr_codes qc ON qc.id = wa.qr_code_id
+		JOIN qr_batches qb ON qb.id = qc.batch_id
+		LEFT JOIN page_templates pt ON pt.id = qb.warranty_template_id
+		WHERE qb.tenant_id = ?
+			AND (wa.activated_at AT TIME ZONE 'UTC')::date >= ?
+			AND (wa.activated_at AT TIME ZONE 'UTC')::date <= ?
+		GROUP BY qb.warranty_template_id, pt.template_name
+	`, tenantUUID, prevFromDate, prevToDate).Scan(&warrantyPreviousRaw)
+
+	prevWarrantyMap := make(map[string]int64)
+	for _, p := range warrantyPreviousRaw {
+		prevWarrantyMap[p.TemplateName] = p.Count
+	}
+
+	var warrantyTemplatePerformance []TemplateUsage
+	for _, c := range warrantyCurrentRaw {
+		prev := prevWarrantyMap[c.TemplateName]
+		warrantyTemplatePerformance = append(warrantyTemplatePerformance, TemplateUsage{
+			TemplateID:    c.TemplateID,
+			TemplateName:  c.TemplateName,
+			Count:         c.Count,
+			PreviousCount: prev,
+			ChangePercent: calcChangePercent(c.Count, prev),
+		})
+	}
+
+	// Add to response — warranty only for dynamic (uses batch QR codes)
+	templatePerf := gin.H{
+		"validation": validationTemplatePerformance,
+		"warranty":   warrantyTemplatePerformance,
+	}
+	responseData["template_performance"] = templatePerf
 
 	utils.SuccessResponse(c, http.StatusOK, "Dashboard data", responseData)
 }
@@ -698,15 +682,12 @@ func (h *DashboardHandler) GetAnalytics(c *gin.Context) {
 }
 
 // GetScanHeatmap returns geolocation data for heatmap visualization
-// Available only for Intermediate tier subscribers
 func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 	tenantUUID, ok := utils.GetTenantUUID(c)
 	if !ok {
 		utils.ErrorResponse(c, http.StatusForbidden, "Invalid tenant context", nil)
 		return
 	}
-
-	isProTier := true
 
 	// Parse query parameters
 	fromDate := c.DefaultQuery("from", time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02"))
@@ -716,15 +697,11 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 	// Scan filter for raw queries
 	qrTypeSQL := "AND i.qr_code_id IS NOT NULL"
 
-	// Pro-only parameters
-	countryFilter := c.Query("country")                    // Filter by country code (Pro only)
-	aggregateMode := c.DefaultQuery("aggregate", "points") // points, country, province, city (Pro only)
+	// Optional filters
+	countryFilter := c.Query("country")                    // Filter by country code
+	aggregateMode := c.DefaultQuery("aggregate", "points") // points, country, province, city
 
-	// Set limit based on tier (Pro gets higher limit)
-	limit := 1000
-	if isProTier {
-		limit = 5000
-	}
+	limit := 5000
 
 	// Response structure
 	response := gin.H{
@@ -737,33 +714,31 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 		},
 	}
 
-	// For Pro tier, get available countries list
-	if isProTier {
-		var availableCountries []struct {
-			CountryCode string `json:"country_code"`
-			CountryName string `json:"country_name"`
-			ScanCount   int64  `json:"scan_count"`
-		}
-		h.DB.Raw(fmt.Sprintf(`
-			SELECT
-				COALESCE(c.code, UPPER(SUBSTRING(geolocation->>'country', 1, 2))) as country_code,
-				COALESCE(c.name, geolocation->>'country') as country_name,
-				COUNT(*) as scan_count
-			FROM interactions i
-			LEFT JOIN countries c ON c.name = i.geolocation->>'country'
-			WHERE i.tenant_id = ?
-				AND i.interaction_category = ?
-				AND i.geolocation IS NOT NULL
-				AND i.geolocation->>'country' IS NOT NULL
-				%s
-			GROUP BY c.code, c.name, geolocation->>'country'
-			ORDER BY scan_count DESC
-		`, qrTypeSQL), tenantUUID, models.InteractionCategoryEndUserAccess).Scan(&availableCountries)
-		response["available_countries"] = availableCountries
+	// Get available countries list
+	var availableCountries []struct {
+		CountryCode string `json:"country_code"`
+		CountryName string `json:"country_name"`
+		ScanCount   int64  `json:"scan_count"`
 	}
+	h.DB.Raw(fmt.Sprintf(`
+		SELECT
+			COALESCE(c.code, UPPER(SUBSTRING(geolocation->>'country', 1, 2))) as country_code,
+			COALESCE(c.name, geolocation->>'country') as country_name,
+			COUNT(*) as scan_count
+		FROM interactions i
+		LEFT JOIN countries c ON c.name = i.geolocation->>'country'
+		WHERE i.tenant_id = ?
+			AND i.interaction_category = ?
+			AND i.geolocation IS NOT NULL
+			AND i.geolocation->>'country' IS NOT NULL
+			%s
+		GROUP BY c.code, c.name, geolocation->>'country'
+		ORDER BY scan_count DESC
+	`, qrTypeSQL), tenantUUID, models.InteractionCategoryEndUserAccess).Scan(&availableCountries)
+	response["available_countries"] = availableCountries
 
-	// Handle aggregation modes (Pro only)
-	if aggregateMode != "points" && isProTier {
+	// Handle aggregation modes
+	if aggregateMode != "points" {
 		switch aggregateMode {
 		case "country":
 			var countryAggregates []struct {
@@ -907,8 +882,8 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 		query = query.Where("i.interaction_subcategory = ?", models.InteractionSubcategoryCampaign)
 	}
 
-	// Filter by country (Pro only)
-	if countryFilter != "" && isProTier {
+	// Filter by country
+	if countryFilter != "" {
 		query = query.Where("UPPER(i.geolocation->>'country') = UPPER(?)", countryFilter)
 	}
 
@@ -1003,17 +978,15 @@ func (h *DashboardHandler) GetScanHeatmap(c *gin.Context) {
 		BatchID   uuid.UUID `json:"batch_id"`
 	}
 	var geoViolations []GeoViolationPoint
-	if true {
-		h.DB.Model(&models.GeofenceViolation{}).
-			Select("geofence_violations.scan_latitude as lat, geofence_violations.scan_longitude as lng, geofence_violations.severity, qr_batches.batch_name, geofence_violations.created_at, geofence_violations.batch_id").
-			Joins("JOIN qr_batches ON qr_batches.id = geofence_violations.batch_id AND qr_batches.tenant_id = ?", tenantUUID).
-			Where("geofence_violations.tenant_id = ?", tenantUUID).
-			Where("DATE(geofence_violations.created_at) >= ? AND DATE(geofence_violations.created_at) <= ?", fromDate, toDate).
-			Where("geofence_violations.scan_latitude != 0 OR geofence_violations.scan_longitude != 0").
-			Order("geofence_violations.created_at DESC").
-			Limit(limit).
-			Scan(&geoViolations)
-	}
+	h.DB.Model(&models.GeofenceViolation{}).
+		Select("geofence_violations.scan_latitude as lat, geofence_violations.scan_longitude as lng, geofence_violations.severity, qr_batches.batch_name, geofence_violations.created_at, geofence_violations.batch_id").
+		Joins("JOIN qr_batches ON qr_batches.id = geofence_violations.batch_id AND qr_batches.tenant_id = ?", tenantUUID).
+		Where("geofence_violations.tenant_id = ?", tenantUUID).
+		Where("DATE(geofence_violations.created_at) >= ? AND DATE(geofence_violations.created_at) <= ?", fromDate, toDate).
+		Where("geofence_violations.scan_latitude != 0 OR geofence_violations.scan_longitude != 0").
+		Order("geofence_violations.created_at DESC").
+		Limit(limit).
+		Scan(&geoViolations)
 
 	summary.GeofenceViolationCount = len(geoViolations)
 

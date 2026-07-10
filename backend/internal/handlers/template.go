@@ -193,12 +193,6 @@ func NewTemplateHandler(db *gorm.DB, cfg *config.Config) *TemplateHandler {
 	return &TemplateHandler{DB: db, Cfg: cfg}
 }
 
-// isBasicTier always returns false: all template types are available in the self-hosted edition.
-func (h *TemplateHandler) isBasicTier(tenantID uuid.UUID) bool {
-	return false
-}
-
-
 type CreateTemplateRequest struct {
 	TemplateName     string                 `json:"template_name" binding:"required,max=255"`
 	TemplateType     string                 `json:"template_type" binding:"required,oneof=validation warranty"`
@@ -345,9 +339,6 @@ func (h *TemplateHandler) ListTemplates(c *gin.Context) {
 	templateType := c.Query("type")
 	status := c.Query("status")
 
-	// Check tier - Basic tier can only see validation templates
-	isBasic := h.isBasicTier(tenantUUID)
-
 	// Ensure default validation and warranty templates exist
 	if err := h.ensureDefaultTemplates(tenantUUID); err != nil {
 		// Log error but don't fail the request
@@ -363,17 +354,7 @@ func (h *TemplateHandler) ListTemplates(c *gin.Context) {
 
 	// Filter by type
 	if templateType != "" && templateType != "all" {
-		// Basic tier can only query validation templates
-		if isBasic && templateType != "validation" {
-			utils.ErrorResponse(c, http.StatusForbidden,
-				"Warranty and campaign templates require Intermediate tier or higher. Please upgrade your subscription.",
-				nil)
-			return
-		}
 		query = query.Where("template_type = ?", templateType)
-	} else if isBasic {
-		// Basic tier default: only return validation templates
-		query = query.Where("template_type = ?", "validation")
 	}
 
 	// Filter by status
@@ -415,14 +396,6 @@ func (h *TemplateHandler) GetTemplate(c *gin.Context) {
 		return
 	}
 
-	// Basic tier can only view validation templates
-	if template.TemplateType != models.TemplateTypeValidation && h.isBasicTier(tenantUUID) {
-		utils.ErrorResponse(c, http.StatusForbidden,
-			"Warranty and campaign templates require Intermediate tier or higher. Please upgrade your subscription.",
-			nil)
-		return
-	}
-
 	utils.SuccessResponse(c, http.StatusOK, "Template retrieved", template)
 }
 
@@ -439,14 +412,6 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	var req CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request", err)
-		return
-	}
-
-	// Basic tier can only create validation templates
-	if req.TemplateType != "validation" && h.isBasicTier(tenantUUID) {
-		utils.ErrorResponse(c, http.StatusForbidden,
-			"Warranty and campaign templates require Intermediate tier or higher. Please upgrade your subscription.",
-			nil)
 		return
 	}
 
@@ -569,14 +534,6 @@ func (h *TemplateHandler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 
-	// Basic tier can only edit validation templates
-	if template.TemplateType != models.TemplateTypeValidation && h.isBasicTier(tenantUUID) {
-		utils.ErrorResponse(c, http.StatusForbidden,
-			"Warranty and campaign templates require Intermediate tier or higher. Please upgrade your subscription.",
-			nil)
-		return
-	}
-
 	var req UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request", err)
@@ -665,14 +622,6 @@ func (h *TemplateHandler) DeleteTemplate(c *gin.Context) {
 	var template models.PageTemplate
 	if err := h.DB.First(&template, "id = ? AND tenant_id = ?", templateID, tenantUUID).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "Template not found", err)
-		return
-	}
-
-	// Basic tier can only delete validation templates
-	if template.TemplateType != models.TemplateTypeValidation && h.isBasicTier(tenantUUID) {
-		utils.ErrorResponse(c, http.StatusForbidden,
-			"Warranty and campaign templates require Intermediate tier or higher. Please upgrade your subscription.",
-			nil)
 		return
 	}
 
@@ -1253,14 +1202,6 @@ func (h *TemplateHandler) SetAsDefault(c *gin.Context) {
 	var template models.PageTemplate
 	if err := h.DB.First(&template, "id = ? AND tenant_id = ?", templateID, tenantUUID).Error; err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "Template not found", err)
-		return
-	}
-
-	// Basic tier can only set validation templates as default
-	if template.TemplateType != models.TemplateTypeValidation && h.isBasicTier(tenantUUID) {
-		utils.ErrorResponse(c, http.StatusForbidden,
-			"Warranty templates require Intermediate tier or higher. Please upgrade your subscription.",
-			nil)
 		return
 	}
 

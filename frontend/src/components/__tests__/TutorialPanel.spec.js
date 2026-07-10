@@ -27,7 +27,6 @@ vi.mock('@/lib/tours/index.js', () => ({
       name: 'Create Your First Dynamic QR Product',
       description: 'Learn how to create a product and generate QR codes.',
       estimatedMinutes: 3,
-      requiredTier: ['intermediate', 'pro'],
       steps: [],
     },
     {
@@ -35,7 +34,6 @@ vi.mock('@/lib/tours/index.js', () => ({
       name: 'Configure Product Settings',
       description: 'Learn how to configure product settings.',
       estimatedMinutes: 5,
-      requiredTier: ['intermediate', 'pro'],
       requires: 'create-dynamic-product',
       steps: [],
     },
@@ -44,24 +42,13 @@ vi.mock('@/lib/tours/index.js', () => ({
       name: 'Create a Landing Page Template',
       description: 'Learn how to design a landing page template.',
       estimatedMinutes: 4,
-      requiredTier: ['intermediate', 'pro'],
       steps: [],
     },
     {
-      id: 'geofence-intermediate',
-      name: 'Using Geofence (Intermediate Tier)',
-      description: 'Learn how to set up distribution zone geofencing for grey market detection.',
-      estimatedMinutes: 5,
-      requiredTier: ['intermediate'],
-      requires: 'create-dynamic-product',
-      steps: [],
-    },
-    {
-      id: 'geofence-pro',
-      name: 'Using Geofence (Pro Tier)',
+      id: 'geofence',
+      name: 'Using Geofence',
       description: 'Learn how to set up geofencing for grey market detection.',
       estimatedMinutes: 5,
-      requiredTier: ['pro'],
       requires: 'create-dynamic-product',
       steps: [],
     },
@@ -150,29 +137,24 @@ describe('TutorialPanel', () => {
     expect(wrapper.text()).not.toContain('More tutorials coming soon.')
   })
 
-  it('renders correct tour cards for pro tier (no intermediate-only tours)', () => {
+  it('renders every registered tour card', () => {
     const wrapper = createWrapper()
     expect(wrapper.text()).toContain('Create Your First Dynamic QR Product')
     expect(wrapper.text()).toContain('Configure Product Settings')
     expect(wrapper.text()).toContain('Create a Landing Page Template')
-    expect(wrapper.text()).not.toContain('Using Geofence (Intermediate Tier)')
-    expect(wrapper.text()).toContain('Using Geofence (Pro Tier)')
+    expect(wrapper.text()).toContain('Using Geofence')
   })
 
-  it('shows tier badge for pro-tier tour', () => {
+  it('does not render subscription-tier badges', () => {
     const wrapper = createWrapper()
-    expect(wrapper.text()).toContain('pro')
-  })
-
-  it('shows comma-separated tier badge for multi-tier tours', () => {
-    const wrapper = createWrapper()
-    expect(wrapper.text()).toContain('intermediate, pro')
+    expect(wrapper.text()).not.toContain('Tier')
+    expect(wrapper.text()).not.toContain('intermediate, pro')
   })
 
   it('shows locked state when prerequisite not completed', () => {
     const wrapper = createWrapper()
     const cards = wrapper.findAll('.rounded-lg.p-4')
-    // product-settings is the 2nd card (index 1) for pro tier
+    // product-settings is the 2nd card (index 1)
     const settingsCard = cards[1]
     expect(settingsCard.text()).toContain('Locked')
     expect(settingsCard.text()).toContain('Complete "Create Your First Dynamic QR Product" first')

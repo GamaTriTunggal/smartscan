@@ -353,7 +353,6 @@ const (
 	ErrorTypeAuth        = "auth"
 	ErrorTypeExternal    = "external_api"
 	ErrorTypeInternal    = "internal"
-	ErrorTypePayment     = "payment"
 	ErrorTypeConfig      = "configuration"
 )
 

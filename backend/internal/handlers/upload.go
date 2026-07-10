@@ -543,42 +543,6 @@ func (h *UploadHandler) ServeCounterfeitReportFile(c *gin.Context) {
 	c.File(fullPath)
 }
 
-// ServePaymentProofFile serves payment proof images (marketing-uploaded)
-// GET /uploads/payment-proofs/*filepath
-func (h *UploadHandler) ServePaymentProofFile(c *gin.Context) {
-	filePath := c.Param("filepath")
-	if filePath == "" {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	filePath = strings.TrimPrefix(filePath, "/")
-	fullPath := filepath.Join(h.Cfg.UploadPath, "payment-proofs", filePath)
-
-	if !isPathSafe(filepath.Join(h.Cfg.UploadPath, "payment-proofs"), fullPath) {
-		c.AbortWithStatus(http.StatusForbidden)
-		return
-	}
-
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-
-	ext := strings.ToLower(filepath.Ext(fullPath))
-	contentType := "application/octet-stream"
-	switch ext {
-	case ".jpg", ".jpeg":
-		contentType = "image/jpeg"
-	case ".png":
-		contentType = "image/png"
-	}
-
-	c.Header("Cache-Control", "private, max-age=86400")
-	c.Header("Content-Type", contentType)
-	c.File(fullPath)
-}
-
 // ServeMsgProofFile serves topup proof images
 // GET /uploads/msg-proofs/*filepath
 func (h *UploadHandler) ServeMsgProofFile(c *gin.Context) {

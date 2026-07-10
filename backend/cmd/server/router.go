@@ -128,7 +128,6 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		uploads.GET("/templates/*filepath", uploadHandler.ServeTemplateFile)
 		// Counterfeit report photos: /uploads/counterfeit-reports/*filepath
 		uploads.GET("/counterfeit-reports/*filepath", uploadHandler.ServeCounterfeitReportFile)
-		// Payment proof images
 	}
 
 	// API v1
@@ -289,7 +288,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					batches.GET("/:id/geofence-analytics", geofenceHandler.GetBatchGeofenceAnalytics)
 				}
 
-				// Uploads (Admin only, Intermediate+ tier)
+				// Uploads (Admin only)
 				tenantUploads := tenant.Group("/uploads")
 				tenantUploads.Use(middleware.TenantAdminOnly())
 				{
@@ -374,7 +373,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					socialAccounts.DELETE("/:id", tenantSocialAccountHandler.Delete)
 				}
 
-				// Locations management (Admin only, Intermediate+ tier)
+				// Locations management (Admin only)
 				tenantLocations := tenant.Group("/locations")
 				tenantLocations.Use(middleware.TenantAdminOnly())
 				{
@@ -471,7 +470,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 
 
 
-				// Warranty Admin routes (After Sales Staff or Admin, Intermediate+ tier)
+				// Warranty Admin routes (After Sales Staff or Admin)
 				warranties := tenant.Group("/warranties")
 				warranties.Use(middleware.TenantAdminOnly())
 				{
@@ -485,7 +484,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					warranties.GET("/:id", warrantyAdminHandler.GetWarrantyDetail)
 				}
 
-				// Counterfeit Detection routes (Admin only, Intermediate+ tier)
+				// Counterfeit Detection routes (Admin only)
 				counterfeit := tenant.Group("/counterfeit")
 				counterfeit.Use(middleware.TenantAdminOnly())
 				{
@@ -514,7 +513,7 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 				}
 
 
-				// Geofence Distribution Zone routes (Admin only, Intermediate+ tier)
+				// Geofence Distribution Zone routes (Admin only)
 				geofence := tenant.Group("/geofence")
 				geofence.Use(middleware.TenantAdminOnly())
 				{
@@ -524,10 +523,10 @@ func setupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 					geofence.GET("/violations/export", geofenceHandler.ExportGeofenceViolations)
 					geofence.GET("/map-data", geofenceHandler.GetGeofenceMapData)
 
-					// Analytics (Pro tier only)
+					// Analytics
 					geofence.GET("/analytics", geofenceHandler.GetGeofenceAnalytics)
 
-					// Zone templates (Pro tier only)
+					// Zone templates
 					zoneTemplates := geofence.Group("/zone-templates")
 						{
 						zoneTemplates.GET("", geofenceHandler.ListZoneTemplates)

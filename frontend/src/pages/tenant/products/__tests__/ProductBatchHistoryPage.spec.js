@@ -231,7 +231,7 @@ describe('ProductBatchHistoryPage', () => {
   }
 
   describe('Geofence Badge', () => {
-    it('should show geofence badge when geofence_enabled is true and tier is Intermediate+', async () => {
+    it('should show geofence badge when geofence_enabled is true', async () => {
       setupMockAPI([batchWithGeofence])
       const wrapper = createWrapper()
       await flushPromises()

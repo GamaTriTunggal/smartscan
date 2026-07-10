@@ -28,7 +28,7 @@ type Product struct {
 	DisplayConfig datatypes.JSON `gorm:"type:jsonb;default:'{\"product_name\": true, \"product_code\": false, \"batch_code\": false, \"production_date\": false, \"expiry_date\": false, \"brand_name\": true, \"show_verification_count\": true}'" json:"display_config"`
 	// Warranty form configuration (optional fields and custom fields)
 	WarrantyFieldsConfig datatypes.JSON `gorm:"type:jsonb;default:'{\"optional_fields\": {\"invoice_number\": false, \"purchase_receipt\": false}, \"custom_fields\": []}'" json:"warranty_fields_config"`
-	// Landing page appearance configuration (background image, overlay, blur) - Intermediate+ tier only
+	// Landing page appearance configuration (background image, overlay, blur)
 	LandingAppearanceConfig datatypes.JSON `gorm:"type:jsonb;default:'{\"background_type\": \"none\", \"preset_id\": null, \"custom_background_url\": null, \"overlay_color\": \"#000000\", \"overlay_opacity\": 30, \"card_opacity\": 90, \"card_blur\": 0}'" json:"landing_appearance_config"`
 	// Product-level template customization overrides (merged on top of template config at render time)
 	TemplateOverrides datatypes.JSON `gorm:"type:jsonb" json:"template_overrides,omitempty"`
@@ -101,7 +101,7 @@ type PageTemplate struct {
 	CreatedByStaff *TenantStaff `gorm:"foreignKey:CreatedBy" json:"created_by_staff,omitempty"`
 }
 
-// TemplateBackgroundConfig represents background configuration for templates (Intermediate+ tier)
+// TemplateBackgroundConfig represents background configuration for templates
 type TemplateBackgroundConfig struct {
 	BackgroundType      string  `json:"background_type"`       // "none", "preset", "custom"
 	PresetID            *string `json:"preset_id"`             // Theme preset ID
@@ -156,7 +156,7 @@ type QRBatch struct {
 	ValidationTemplateID *uuid.UUID `gorm:"type:uuid" json:"validation_template_id,omitempty"`
 	// WarrantyEnabled is now at product level - template override kept here
 	WarrantyTemplateID   *uuid.UUID `gorm:"type:uuid" json:"warranty_template_id,omitempty"`
-	// Geofence: distribution zone (optional, Intermediate+ tier)
+	// Geofence: distribution zone (optional)
 	GeofenceEnabled   bool     `gorm:"default:false" json:"geofence_enabled"`
 	GeofenceLatitude  *float64 `gorm:"type:decimal(10,7)" json:"geofence_latitude,omitempty"`
 	GeofenceLongitude *float64 `gorm:"type:decimal(10,7)" json:"geofence_longitude,omitempty"`

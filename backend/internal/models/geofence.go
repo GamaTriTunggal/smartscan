@@ -34,7 +34,7 @@ func (GeofenceViolation) TableName() string {
 	return "geofence_violations"
 }
 
-// GeofenceZoneTemplate is a saved geofence zone for reuse in batch creation (Pro tier).
+// GeofenceZoneTemplate is a saved geofence zone for reuse in batch creation.
 type GeofenceZoneTemplate struct {
 	ID           uuid.UUID  `gorm:"type:uuid;primary_key;default:uuidv7()" json:"id"`
 	TenantID     uuid.UUID  `gorm:"type:uuid;not null" json:"tenant_id"`

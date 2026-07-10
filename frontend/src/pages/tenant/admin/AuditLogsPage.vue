@@ -539,8 +539,6 @@ onMounted(() => {
             <option value="user">User</option>
             <option value="password">Password</option>
             <option value="tenant_staff">Staff</option>
-            <option value="subscription">Subscription</option>
-            <option value="subscription_plan">Subscription Plan</option>
             <option value="campaign">Campaign</option>
             <option value="qr_batch">QR Batch</option>
           </select>

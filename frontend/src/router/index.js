@@ -98,7 +98,7 @@ const routes = [
         component: () => import('@/pages/tenant/AnalyticsPage.vue'),
         meta: { adminOnly: true },
       },
-      // Warranty Activations (Intermediate+ tier)
+      // Warranty Activations
       {
         path: 'warranties',
         name: 'TenantWarrantyList',

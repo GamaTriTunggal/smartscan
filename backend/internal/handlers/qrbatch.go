@@ -198,7 +198,7 @@ type CreateQRBatchRequest struct {
 	// Optional template overrides (if not set, uses product default → tenant default)
 	ValidationTemplateID string `json:"validation_template_id"`
 	WarrantyTemplateID   string `json:"warranty_template_id"` // Template override still allowed
-	// Geofence: distribution zone (optional, Intermediate+ tier)
+	// Geofence: distribution zone (optional)
 	GeofenceEnabled   bool     `json:"geofence_enabled"`
 	GeofenceLatitude  *float64 `json:"geofence_latitude"`
 	GeofenceLongitude *float64 `json:"geofence_longitude"`
@@ -265,35 +265,33 @@ func (h *QRBatchHandler) CreateQRBatch(c *gin.Context) {
 	// Generate batch code
 	batchCode := generateBatchNumber()
 
-	// Geofence: validate distribution zone (Intermediate+ only)
+	// Geofence: validate distribution zone
 	geofenceEnabled := req.GeofenceEnabled
 	var geofenceLat, geofenceLng, geofenceRadius *float64
 	geofenceLabel := ""
 	if geofenceEnabled {
-		{
-			if req.GeofenceLatitude == nil || req.GeofenceLongitude == nil || req.GeofenceRadiusKm == nil {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Geofence requires latitude, longitude, and radius", nil)
-				return
-			}
-			if *req.GeofenceLatitude < -90 || *req.GeofenceLatitude > 90 {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Invalid geofence latitude (-90 to 90)", nil)
-				return
-			}
-			if *req.GeofenceLongitude < -180 || *req.GeofenceLongitude > 180 {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Invalid geofence longitude (-180 to 180)", nil)
-				return
-			}
-			if *req.GeofenceRadiusKm < 1 || *req.GeofenceRadiusKm > 500 {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Geofence radius must be between 1 and 500 km", nil)
-				return
-			}
-			geofenceLat = req.GeofenceLatitude
-			geofenceLng = req.GeofenceLongitude
-			geofenceRadius = req.GeofenceRadiusKm
-			geofenceLabel = strings.TrimSpace(req.GeofenceLabel)
-			if labelRunes := []rune(geofenceLabel); len(labelRunes) > 255 {
-				geofenceLabel = string(labelRunes[:255])
-			}
+		if req.GeofenceLatitude == nil || req.GeofenceLongitude == nil || req.GeofenceRadiusKm == nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Geofence requires latitude, longitude, and radius", nil)
+			return
+		}
+		if *req.GeofenceLatitude < -90 || *req.GeofenceLatitude > 90 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid geofence latitude (-90 to 90)", nil)
+			return
+		}
+		if *req.GeofenceLongitude < -180 || *req.GeofenceLongitude > 180 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid geofence longitude (-180 to 180)", nil)
+			return
+		}
+		if *req.GeofenceRadiusKm < 1 || *req.GeofenceRadiusKm > 500 {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Geofence radius must be between 1 and 500 km", nil)
+			return
+		}
+		geofenceLat = req.GeofenceLatitude
+		geofenceLng = req.GeofenceLongitude
+		geofenceRadius = req.GeofenceRadiusKm
+		geofenceLabel = strings.TrimSpace(req.GeofenceLabel)
+		if labelRunes := []rune(geofenceLabel); len(labelRunes) > 255 {
+			geofenceLabel = string(labelRunes[:255])
 		}
 	}
 
@@ -1090,8 +1088,6 @@ func (h *QRBatchHandler) GetBatchHeatmap(c *gin.Context) {
 		return
 	}
 
-	isProTier := true
-
 	// Parse query parameters
 	fromDate := c.DefaultQuery("from", time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02"))
 	toDate := c.DefaultQuery("to", time.Now().UTC().Format("2006-01-02"))
@@ -1107,11 +1103,7 @@ func (h *QRBatchHandler) GetBatchHeatmap(c *gin.Context) {
 		return
 	}
 
-	// Set limit based on tier
-	limit := 500
-	if isProTier {
-		limit = 2000
-	}
+	limit := 2000
 
 	// Scans are recorded with qr_code_id, join via qr_codes.batch_id
 	query := h.DB.Table("interactions i").

@@ -59,7 +59,7 @@ type ValidationResult struct {
 	WebsiteCaption string `json:"website_caption,omitempty"`
 	// Display config from product (controls which fields to show)
 	DisplayConfig interface{} `json:"display_config,omitempty"`
-	// Landing appearance config for background customization (Intermediate+ tier)
+	// Landing appearance config for background customization
 	LandingAppearanceConfig interface{} `json:"landing_appearance_config,omitempty"`
 	// QR Code ID for counterfeit report submission (dynamic only)
 	QRCodeID string `json:"qr_code_id,omitempty"`

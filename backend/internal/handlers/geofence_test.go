@@ -567,7 +567,7 @@ func TestGetBatchGeofenceViolations_FilterBySeverity(t *testing.T) {
 	assert.Len(t, violations, 1)
 }
 
-// ─── GetBatchGeofenceAnalytics tests (Pro tier gated) ───────────────────────
+// ─── GetBatchGeofenceAnalytics tests ────────────────────────────────────────
 
 func TestGetBatchGeofenceAnalytics_Success(t *testing.T) {
 	fix, cleanup := setupGeofenceTest(t)
@@ -615,7 +615,7 @@ func TestGetBatchGeofenceAnalytics_BatchNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
-// ─── ExportGeofenceViolations tests (Pro tier gated) ────────────────────────
+// ─── ExportGeofenceViolations tests ─────────────────────────────────────────
 
 func TestExportGeofenceViolations_Success(t *testing.T) {
 	fix, cleanup := setupGeofenceTest(t)
@@ -1037,7 +1037,7 @@ func TestUpdateQRBatch_GeofenceZoneTemplate_IncrementsUsage(t *testing.T) {
 	fix, cleanup := setupGeofenceTest(t)
 	defer cleanup()
 
-	// UpdateQRBatch requires an active subscription with Intermediate+ tier (geofence is gated).
+	// UpdateQRBatch allows editing geofence settings on an existing batch.
 
 	// Create a zone template with usage_count 0
 	zt := &models.GeofenceZoneTemplate{

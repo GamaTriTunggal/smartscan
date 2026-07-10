@@ -34,7 +34,7 @@ const templateData = ref({
   custom_fields: null,
 })
 
-// Background config for templates (Intermediate+ tier only)
+// Background config for templates
 const defaultBackgroundConfig = {
   background_type: 'none',
   preset_id: null,
@@ -163,7 +163,7 @@ const fetchTemplate = async () => {
         warrantyConfig.value = { ...defaultWarrantyConfig, ...response.data.custom_fields }
       }
 
-      // Load background config (Intermediate+ tier)
+      // Load background config
       if (response.data.background_config) {
         backgroundConfig.value = { ...defaultBackgroundConfig, ...response.data.background_config }
       } else {

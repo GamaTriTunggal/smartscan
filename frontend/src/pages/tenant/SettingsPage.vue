@@ -50,8 +50,6 @@ const counterfeitSettings = ref({
   auto_flag_suspicious: true,
 })
 
-const showCounterfeitTab = computed(() => true)
-
 function loadProfile() {
   if (authStore.user) {
     profileForm.value = {
@@ -248,7 +246,6 @@ onMounted(async () => {
           Security
         </button>
         <button
-          v-if="showCounterfeitTab"
           @click="activeTab = 'counterfeit'"
           :class="[
             'py-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap',
@@ -406,8 +403,8 @@ onMounted(async () => {
       </Card>
     </div>
 
-    <!-- Counterfeit Detection Tab (Intermediate+ only) -->
-    <div v-if="activeTab === 'counterfeit' && showCounterfeitTab">
+    <!-- Counterfeit Detection Tab -->
+    <div v-if="activeTab === 'counterfeit'">
       <Card class="p-6 dark:bg-gray-800 dark:border-gray-700">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
           Counterfeit Detection Settings

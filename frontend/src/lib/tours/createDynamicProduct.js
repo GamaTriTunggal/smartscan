@@ -8,7 +8,6 @@ export const createDynamicProductTour = {
   name: 'Create Your First Dynamic QR Product',
   description: 'Learn how to create a product, generate QR code batches, and request printing — step by step.',
   estimatedMinutes: 3,
-  requiredTier: ['intermediate', 'pro'],
   steps: [
     // ── Step 0: Sidebar → Dynamic QR ──
     {

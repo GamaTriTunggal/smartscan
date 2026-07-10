@@ -9,7 +9,6 @@ export const productSettingsTour = {
   name: 'Configure Product Settings',
   description: 'Learn how to edit product info, add certifications, customize the landing page template, and set up warranty.',
   estimatedMinutes: 5,
-  requiredTier: ['intermediate', 'pro'],
   requires: 'create-dynamic-product',
   steps: [
     // ── Step 0: Sidebar → Dynamic QR ──

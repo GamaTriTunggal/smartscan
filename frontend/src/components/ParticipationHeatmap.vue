@@ -50,7 +50,7 @@ const props = defineProps({
     type: Number,
     default: 5
   },
-  // Pro tier features
+  // Advanced map options
   countryFilter: {
     type: String,
     default: null

@@ -40,7 +40,6 @@ export const createLandingTemplateTour = {
   name: 'Create a Landing Page Template',
   description: 'Learn how to design a landing page template that customers see when scanning your QR codes.',
   estimatedMinutes: 4,
-  requiredTier: ['intermediate', 'pro'],
   steps: [
     // ── Step 0: Sidebar → Landing ──
     {

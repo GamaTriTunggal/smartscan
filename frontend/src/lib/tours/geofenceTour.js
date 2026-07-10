@@ -5,11 +5,10 @@ import {
 } from './tourUtils.js'
 
 export const geofenceTour = {
-  id: 'geofence-pro',
-  name: 'Using Geofence (Pro Tier)',
-  description: 'Learn how to set up distribution zone geofencing for grey market detection. This tutorial is exclusive to Pro tier.',
+  id: 'geofence',
+  name: 'Using Geofence',
+  description: 'Learn how to set up distribution zone geofencing for grey market detection.',
   estimatedMinutes: 5,
-  requiredTier: ['pro'],
   requires: 'create-dynamic-product',
   steps: [
     // ── Step 0: Sidebar → Dynamic QR ──
@@ -106,7 +105,7 @@ export const geofenceTour = {
       expectedRoute: '/tenant/products/dynamic',
       selector: '[data-tour="geofence-zone-template"]',
       popover: {
-        title: 'Zone Templates (Pro Feature)',
+        title: 'Zone Templates',
         description: 'If you have saved zone templates, you can quickly load them here instead of setting up coordinates manually. For now, we\'ll set up a zone from scratch.',
         side: 'bottom',
       },
